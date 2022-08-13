@@ -633,12 +633,29 @@ namespace BubbleStormTweaks
                     index.AppendLine("<td><div>");
                     foreach (var tier in relic.effectsTiers.Where(tier => tier.effect.Length > 0))
                     {
-                        index.AppendLine($@"<div>Every {tier.timeToStart.Minutes()}:</div>");
+                        index.AppendLine($@"<div><b class=""relic-effect-category"">Every {tier.timeToStart.Minutes()}:</b></div>");
                         foreach (var effect in tier.effect)
                         {
-                            index.AppendLine($@"<div>{effect.Description}</div>");
+                            index.AppendLine($@"<div class=""relic-effect"">{effect.Description}</div>");
                         }
                     }
+
+                    for (int i = 0; i < relic.difficulties.Length; i++)
+                    {
+                        RelicDifficulty diff = relic.difficulties[i];
+                        if (diff.workingEffects?.Length > 0)
+                        {
+                            List<string> diffclass = diffclasses[i];
+                            index.AppendLine($@"<div class=""{string.Join(" ", diffclass)}"">");
+                            index.AppendLine($@"<div><b class=""relic-effect-category"">While working:</b></div>");
+                            foreach (var effect in diff.workingEffects)
+                            {
+                                index.AppendLine($@"<div class=""relic-effect"">{effect.Description}</div>");
+                            }
+                            index.AppendLine($@"</div>");
+                        }
+                    }
+
                     index.AppendLine("</div></td></tr>");
 
                 }
