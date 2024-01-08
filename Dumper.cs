@@ -1,4 +1,11 @@
-﻿using BepInEx;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
 using Eremite;
 using Eremite.Buildings;
 using Eremite.Characters.Villagers;
@@ -7,22 +14,13 @@ using Eremite.Model;
 using Eremite.Model.Effects;
 using Eremite.Model.Meta;
 using Eremite.Model.Orders;
-using Eremite.Model.Trade;
 using Eremite.Services;
 using Eremite.WorldMap;
 using HarmonyLib;
 using Newtonsoft.Json;
 using QFSW.QC;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
+using QFSW.QC.Utilities;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace BubbleStormTweaks
 {
@@ -30,6 +28,7 @@ namespace BubbleStormTweaks
     {
         public static void LogInfo(object data) => Plugin.LogInfo(data);
         public static Settings GameSettings => Plugin.GameSettings;
+        public static string WikiRoot => @"C:\Against the Storm\data-wiki-raw\";
 
         public class RewardData
         {
@@ -78,7 +77,7 @@ namespace BubbleStormTweaks
             [JsonProperty]
             public string[] costs = Array.Empty<string>();
         }
-        public static void DoDump(InputAction.CallbackContext context)
+        public static void DoDump()
         {
             LogInfo(" === DUMP STARTING ===");
             GetOrderExclusions();
@@ -115,350 +114,28 @@ namespace BubbleStormTweaks
             DumpOrders(index);
             index.Clear();
 
-            DumpRelics(index);
+            RelicDumper.Dump(index);
             index.Clear();
 
-            DumpCornerstones(index);
+            CornerstoneDumper.Dump(index);
             index.Clear();
 
             DumpCommands(index);
             index.Clear();
 
-
-            foreach (var source in GameSettings.Buildings)
-            {
-                if (source is AltarModel altar) { }
-                else if (source is BlightPostModel blightPost)
-                {
-                    foreach (var recipe in blightPost.recipes)
-                    {
-                        RecipeRaw raw = Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
-
-                        if (!recipe.RequiredGoodsNotValid())
-                        {
-                            raw.ingredients = recipe.requiredGoods;
-                            foreach (var i in raw.ingredients)
-                            {
-                                foreach (var a in i.goods)
-                                {
-                                    InfoFor(a.Name).ingredientIn.Add(raw.Id);
-                                }
-                            }
-                        }
-                    }
-
-                }
-                else if (source is CampModel camp)
-                {
-                    foreach (var recipe in camp.recipes)
-                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
-                }
-                else if (source is DecorationModel decoration) { }
-                else if (source is FarmfieldModel field) { }
-                else if (source is HearthModel hearth) { }
-                else if (source is HouseModel house) { }
-                else if (source is HydrantModel hydrant) { }
-                else if (source is InstitutionModel institution)
-                {
-                    foreach (var recipe in institution.recipes)
-                    {
-                        var raw = Add(source, recipe.servedNeed, 1, 1, "-");
-                        raw.ingredients = new GoodsSet[] { recipe.requiredGoods };
-                        foreach (var i in raw.ingredients)
-                        {
-                            foreach (var a in i.goods)
-                            {
-                                InfoFor(a.Name).ingredientIn.Add(raw.Id);
-                            }
-                        }
-                    }
-                }
-                else if (source is RelicModel relic) { }
-                else if (source is RoadModel road) { }
-                else if (source is StorageModel storage) { }
-                else if (source is TradingPostModel trader) { }
-                else if (source is CollectorModel collector)
-                {
-                    foreach (var recipe in collector.recipes)
-                        Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
-                }
-                else if (source is FarmModel farm)
-                {
-                    foreach (var recipe in farm.recipes)
-                    {
-                        RecipeRaw raw = Add(recipe, source, recipe.producedGood, 0, GetTier(recipe.Name));
-                        raw.timeA = ("plant", recipe.plantingTime);
-                        raw.timeB = ("harvest", recipe.harvestTime);
-                    }
-                }
-                else if (source is GathererHutModel gatherer)
-                {
-                    foreach (var recipe in gatherer.recipes)
-                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
-                }
-                else if (source is MineModel mine)
-                {
-                    foreach (var recipe in mine.recipes)
-                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
-                }
-                else if (source is WorkshopModel workshop)
-                {
-                    foreach (var recipe in workshop.recipes)
-                    {
-                        RecipeRaw raw = Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
-
-                        if (!recipe.RequiredGoodsNotValid())
-                        {
-                            raw.ingredients = recipe.requiredGoods;
-                            foreach (var i in raw.ingredients)
-                            {
-                                foreach (var a in i.goods)
-                                {
-                                    InfoFor(a.Name).ingredientIn.Add(raw.Id);
-                                }
-                            }
-                        }
-                    }
-                }
-
-            }
-
-            try
-            {
-                index.Clear();
-                index.AppendLine($@"<html>{HTML_HEAD}<body>
-                                    <header>{NAV}</header><main>
-                                    <div>Click on an upgrade or level marker to see its rewards and cost to unlock.</div>
-                                    <div class=""capital-upgrade-tree"">");
-
-                int maxLevel = GameSettings.metaConfig.levels.Length;
-                for (int i = 0; i < GameSettings.capitalStructures.Length; i++)
-                {
-                    var structure = GameSettings.capitalStructures[i];
-                    int fromRow = 100, toRow = 0;
-                    foreach (var upgrade in structure.upgrades)
-                    {
-
-                        var data = new UpgradeData()
-                        {
-                            name = upgrade.Name,
-                            cost = upgrade.price.Select(curr => $"{curr.amount}x {curr.Name}").ToArray(),
-                            rewards = upgrade.rewards.Select(reward => new RewardData(reward)).ToArray(),
-                        };
-
-                        int row = 2 * (1 + (maxLevel - upgrade.requiredLevel));
-                        string cell = $"grid-column: {1 + i}; grid-row: {row}";
-                        index.AppendLine($@"<div class=""hex-img required-level-{upgrade.requiredLevel}"" style=""z-index: 2; {cell}"">{upgrade.icon.ImageScaled("capital-upgrade", 64)}</div>");
-                        index.AppendLine($@"<div class=""hex-frame reward-provider"" style=""z-index: 3; {cell}"" {data.DataAttrib("rewards")}'></div>");
-
-                        if (row < fromRow) fromRow = row;
-                        if (row > toRow) toRow = row;
-
-                    }
-
-                    index.AppendLine($@"<div class=""upgrade-track"" style=""z-index: 1; grid-column: {1 + i}; grid-row: {fromRow} / {toRow + 1}""></div>");
-
-                }
-
-                for (int i = 1; i < (maxLevel); i++)
-                {
-
-                    LevelRewards levelup = new()
-                    {
-                        name = $"Level {i + 1}",
-                        rewards = GameSettings.metaConfig.levels[i].rewards.Select(reward => new RewardData(reward)).ToArray()
-                    };
-
-                    int row = 2 * (1 + (maxLevel - i)) - 1;
-                    index.AppendLine($@"<div class=""upgrade-level reward-provider"" {levelup.DataAttrib("rewards")} style=""z-index: 1; grid-column: 1 / 8; grid-row: {row}"">Level {1 + i}</div>");
-                }
-
-                index.AppendLine($@"
-            <div class=""upgrade-preview"" style=""grid-column: 8; grid-row: 5 / 34"">
-                <div id=""upgrade-panel"">
-                    <h4 id=""upgrade-name"">Name</h4>
-                    <div id=""upgrade-cost"">
-                        <span>3 blah</span>
-                        <span>2 foo</span>
-                        <span>8 bar</span>
-                    </div>
-                    <div id=""upgrade-rewards""></div>
-                </div>
-            </div>");
-
-                index.AppendLine("</div></main></body></html>");
-                Write(index, "upgrades", "index");
-                index.Clear();
-
-            }
-            catch (Exception ex)
-            {
-                Plugin.LogError(ex);
-                throw;
-            }
-
-            try
-            {
-                index.Clear();
-                index.AppendLine($@"<html>{HTML_HEAD}<body>
-                                    <header>{NAV}</header><main>
-                                    <div>");
-                foreach (var biome in GameSettings.biomes)
-                {
-                    DumpBiome(biome);
-                    index.AppendLine($@"<div>{biome.SmallIcon()}<a href=""{biome.Name.Sane()}.html"">{(biome.displayName.HasText ? biome.displayName.Text : biome.Name.StripCategory())}</a></div>");
-                }
-
-                index.AppendLine("</div></main></body></html>");
-                Write(index, "biomes", "index");
-                index.Clear();
-
-            }
-            catch (Exception ex)
-            {
-                Plugin.LogError(ex);
-                throw;
-            }
-
-
-            index.AppendLine($@"<html>{HTML_HEAD}<body>
-            <header>{NAV}</header><main>
-            <div class=""building-categories"">");
-
-            foreach (var cat in MainController.Instance.Settings.Goods.GroupBy(g => g.category.Name))
-            {
-                index.AppendLine($@"<div class=""building-category"">");
-                index.AppendLine($@"<h2>{cat.Key}</h2>");
-                foreach (var g in cat)
-                {
-                    DumpGood(g);
-                    index.AppendLine($@"<div>{g.SmallIcon()}<a href=""{g.Name.Sane()}.html"">{g.Name.StripCategory()}</a></div>");
-                }
-                index.AppendLine($@"</div>");
-            }
-            index.AppendLine(@"</div></main></body>
-            <style>
-            body {
-                background-color: #444751;
-                color: lightgray;
-            }
-            a, header>nav a { color: lightgray; }
-            img { vertical-align: middle; }
-            a { padding-left:4px; }
-            :root { 
-                --accent: gray;
-            }
-            </style></html>");
-            Write(index, "goods", "index");
-
+            DumpBuildings(index);
             index.Clear();
 
-            index.AppendLine($@"<html>{HTML_HEAD}<body>
-            <header>{NAV}</header><main>
-            <table class=""building-categories"">");
+            MysteryDumper.Dump(index);
+            index.Clear();
 
-            foreach (var cat in GameSettings.Buildings
-                .GroupBy(b => Regex.Replace(b.category.Name, @"\d", ""))
-                .OrderByDescending(group => group.Sum(bm => recipeById.Values.Where(r => r.buildingModel == bm).Count())))
-            {
-                index.AppendLine($@"
-                        <tr><th class=""category-name sticky-first"" colspan=""5"">{cat.Key}</th></tr>
-                        <tr>
-                            <th class=""sticky-second"">Name</th>
-                            <th class=""sticky-second"">Produces</th>
-                            <th class=""sticky-second"">Building cost</th>
-                            <th class=""sticky-second"">Movable</th>
-                            <th class=""sticky-second"">Worker bonus</th>
-                        </tr>");
-
-
-                foreach (var b in cat)
-                {
-                    DumpBuilding(b);
-
-                    string move = "👎";
-                    if (b.movable)
-                    {
-                        if (b.HasMovingCost())
-                        {
-                            move = b.movingCost.Cost("construction");
-                        }
-                        else
-                        {
-                            move = "👍 - free";
-                        }
-                    }
-                    string buildCost = b.requiredGoods.Select(g => Div(g.Cost("construction"))).GatherIn("div");
-
-                    static string MakeRecipeLine(RecipeRaw r)
-                    {
-                        if (r.output != null)
-                            return $@"{r.output.SmallIcon()} {r.tier} <a href=""{r.output.good.Link()}""> {r.output.good.displayName.Text} </a>".Surround("div");
-                        else if (r.need != null)
-                            return $@"{r.need.GetIcon().Small("need")} {r.tier} {r.outputName.StripCategory()}".Surround("div");
-                        else
-                            return "-";
-                    }
-
-                    string produces = string.Join("\n", recipeById.Values.Where(r => r.buildingModel == b).Select(MakeRecipeLine)).Surround("div");
-
-                    string bonusRaces = "-";
-                    HashSet<(string, string)> racesWithBonus = new();
-                    foreach (var tag in b.tags)
-                    {
-                        if (buildingTagToRace.TryGetValue(tag.Name, out var list))
-                        {
-                            foreach (var r in list)
-                            {
-                                string bonus = r.Item2?.FormatedDescription ?? "??";
-                                if (r.Item2 is VillagerExtraProductionChancePerkModel extraProdChance)
-                                    bonus = extraProdChance.GetAmountText() + " for double";
-                                else if (r.Item2 is VillagerExtraProductionChanceForProfessionPerkModel extraForProf)
-                                    bonus = extraForProf.GetAmountText() + " for double";
-                                else if (r.Item2 is VillagerResolveEffectPerkModel resolve)
-                                    bonus = resolve.GetAmountText() + " resolve";
-                                racesWithBonus.Add((r.Item1, bonus));
-
-                            }
-                        }
-                    }
-
-                    if (racesWithBonus.Count > 0)
-                    {
-                        bonusRaces = string.Join("\n", racesWithBonus.Select(rr => $"{GameSettings.GetRace(rr.Item1).icon.Small("race")} {rr.Item1} ({rr.Item2.Replace("Hearth_", "")})".Div()));
-                    }
-
-                    index.AppendLine($@"<tr>
-                                            <td>{b.SmallIcon()}<a href=""{b.Name.Sane()}.html"">{b.Name.StripCategory()}</a></td>
-                                            <td>{produces}</td>
-                                            <td>{buildCost}</td>
-                                            <td>{move}</td>
-                                            <td>{bonusRaces}</td>
-                                        </tr>");
-                }
-            }
-            index.AppendLine(@"</table></main></body>
-            <style>
-            body {
-                background-color: #444751;
-                color: lightgray;
-            }
-            :root { 
-                --accent: gray;
-                --text: lightgray;
-            }
-            a, header>nav a { color: lightgray; }
-            img { vertical-align: middle; }
-            a { padding-left:4px; }
-            </style></html>");
-            Write(index, "buildings", "index");
+            TraderDumper.Dump(index);
             index.Clear();
 
             DumpEffects(index);
             index.Clear();
 
-            Console.WriteLine("sprite seen: " + Ext.spritesUsed.Keys.Count());
-            File.WriteAllLines($"{WikiRoot}sprites_used.txt", Ext.spritesUsed.Keys.Select(s => s.Render));
+            File.WriteAllLines(Path.Combine(WikiRoot, "sprites_used.txt"), Ext.spritesUsed.Select(s => s.Render));
 
             LogInfo(" === DUMP COMPLETE ===");
         }
@@ -480,7 +157,7 @@ namespace BubbleStormTweaks
             {
                 var attrib = t.GetCustomAttribute<CommandAttribute>();
 
-                
+
                 if (attrib != null)
                 {
                     row.Clear();
@@ -559,8 +236,6 @@ namespace BubbleStormTweaks
             public BuildingModel model;
             public string Name => model.Name;
         }
-
-        private static readonly Dictionary<string, BuildingModel> buildingsByName = new();
         private static readonly Dictionary<string, RecipeRaw> recipeById = new();
         private static readonly Dictionary<string, GoodInfo> goodInfo = new();
 
@@ -614,8 +289,12 @@ namespace BubbleStormTweaks
         {
             public EffectModel model;
             public HashSet<string> biomes = new();
-            public HashSet<(string, float)> traders = new();
+            public HashSet<string> traders = new();
             public HashSet<string> orders = new();
+
+            public bool IsUsed() {
+                return biomes.Count > 0 || traders.Count > 0 || orders.Count > 0;
+            }
 
             public IEnumerable<IGrouping<string, string>> Sources
             {
@@ -626,7 +305,7 @@ namespace BubbleStormTweaks
                         yield return new EffectSourceGroup()
                         {
                             _Key = "Traders",
-                            Source = traders.Select(t => GameSettings.GetTrader(t.Item1).SmallIcon()),
+                            Source = traders.Select(t => GameSettings.GetTrader(t).SmallIcon()),
                         };
                     }
 
@@ -652,7 +331,7 @@ namespace BubbleStormTweaks
 
         private static readonly Dictionary<string, EffectSource> effectSources = new();
 
-        private static EffectSource GetEffectSource(EffectModel effect)
+        public static EffectSource GetEffectSource(EffectModel effect)
         {
             if (!effectSources.TryGetValue(effect.Name, out EffectSource source))
             {
@@ -660,333 +339,6 @@ namespace BubbleStormTweaks
                 effectSources[effect.Name] = source;
             }
             return source;
-        }
-        private static void DumpCornerstones(StringBuilder index)
-        {
-            index.AppendLine($@"<html>{HTML_HEAD}<body>
-            <header> {NAV} </header><main>
-            <div class=""cornerstone-container"">");
-
-            HashSet<string> seen = new();
-
-            foreach (var biome in GameSettings.biomes)
-            {
-                foreach (var effect in biome.seasons.SeasonRewards.SelectMany(season => season.effectsTable.effects).Select(tableEntry => tableEntry.effect))
-                {
-                    GetEffectSource(effect).biomes.Add(biome.Name);
-                }
-            }
-
-            foreach (var trader in GameSettings.traders)
-            {
-                foreach (var effect in trader.merchandise)
-                {
-                    GetEffectSource(effect.reward).traders.Add((trader.Name, effect.chance));
-                }
-            }
-
-            var m = GameSettings.GetEffect("SE Slow Woodcutting For Meat") as HookedEffectModel;
-            foreach (var hooked in m.instantEffects)
-            {
-                if (hooked is ProductionRateEffectModel rate)
-                    LogInfo(rate.amount);
-            }
-
-            foreach (var source in effectSources.Values.Where(v => v.biomes.Count > 0))
-            {
-                var effect = source.model;
-                index.AppendLine($@"<div class=""cornerstone"">");
-                index.AppendLine($@"<a class=""section-anchor"" href=""#{effect.Name.Sane()}"" id=""{effect.Name.Sane()}""><div>{effect.SmallIcon()}<h3>{effect.DisplayName}</h3></div></a>");
-                index.AppendLine($@"<p>{effect.Description}</p>");
-
-
-                if (source.traders.Count > 0)
-                {
-                    index.AppendLine($@"<h4>Sold by:</h4><div class=""biome-reward-container"">");
-                    foreach (var (trader, chance) in source.traders)
-                        index.AppendLine($@"<span class=""biome-reward"">{trader} ({chance}%)</span>");
-                    index.AppendLine($@"</div>");
-                }
-
-                index.AppendLine($@"<h4>Seasonal reward in:</h4><div class=""biome-reward-container"">");
-                foreach (var biome in source.biomes)
-                    index.AppendLine($@"<span class=""biome-reward"">{biome}</span>");
-                index.AppendLine($@"</div>");
-                index.AppendLine($@"</div>");
-            }
-            //{
-            //    index.AppendLine(@"<div class=""relic"">");
-            //    index.AppendLine($@"<h3>{relic.Name}</h3>");
-            //    index.AppendLine($@"<h5>{relic.Description}</h5>");
-
-            //    foreach (var tier in relic.effectsTiers.Where(tier => tier.effect.Length > 0))
-            //    {
-            //        index.AppendLine($@"<h4>Active after {tier.timeToStart} seconds:</h4>");
-            //        index.AppendLine($@"<ul>");
-            //        foreach (var effect in tier.effect)
-            //        {
-            //            index.AppendLine($@"<li>{effect.Description}</li>");
-            //        }
-            //        index.AppendLine($@"</ul>");
-            //    }
-
-            //    foreach (var diff in relic.difficulties)
-            //    {
-            //        index.AppendLine($@"<h4>Difficulty {diff.difficulty}: {diff.workingTimeRatio * relic.workTime} seconds</h4>");
-            //        index.AppendLine($@"<ul>");
-            //        foreach (var set in diff.requriedGoods.sets)
-            //        {
-            //            index.AppendLine($@"<li>{string.Join(" | ", set.goods.Select(good => good.amount + $@"× {good.good.icon.Small()}<a href=""{good.good.Link()}"">" + good.Name.StripCategory() + "</a>"))}</li>");
-            //        }
-            //        index.AppendLine($@"</ul>");
-            //    }
-
-            //    foreach (var reward in relic.rewardsTiers)
-            //    {
-            //        string amount = "";
-            //        if (reward.rewardsTable != null && reward.rewardsTable.effects.Length > 0)
-            //        {
-            //            var amounts = reward.rewardsTable.amounts;
-            //            amount = " " + ((amounts.x == amounts.y) ? amounts.x.ToString() : $"{amounts.x} - {amounts.y}");
-            //        }
-
-            //        index.AppendLine($@"<h3>After {reward.timeToStart} seconds get{amount}:</h3>");
-            //        index.AppendLine($@"<ul>");
-            //        if (reward.rewards != null && reward.rewards.Length > 0)
-            //            foreach (var thing in reward.rewards)
-            //                index.AppendLine($@"<li>{thing.DescriptionOrLink()}</li>");
-            //        if (reward.rewardsTable != null && reward.rewardsTable.effects.Length > 0)
-            //        {
-            //            foreach (var thing in reward.rewardsTable.effects)
-            //                index.AppendLine($@"<li>{thing.effect.DescriptionOrLink()} chance: {thing.chance}</li>");
-            //        }
-            //        index.AppendLine($@"</ul>");
-            //    }
-
-            //    index.AppendLine($@"<h3>Choose one of these after resolving:</h3>");
-            //    foreach (var rewardSet in relic.rewardsSets)
-            //    {
-            //        var amounts = rewardSet.effects.amounts;
-            //        string amount = (amounts.x == amounts.y) ? amounts.x.ToString() : $"{amounts.x} - {amounts.y}";
-            //        index.AppendLine($@"<h4>{rewardSet.label},    {amount} of:</h4>");
-            //        index.AppendLine($@"<ul>");
-            //        foreach (var thing in rewardSet.effects.effects)
-            //            index.AppendLine($@"<li>{thing.effect.DescriptionOrLink()} {thing.chance}%</li>");
-            //        index.AppendLine($@"</ul>");
-
-            //    }
-
-            //    index.AppendLine(@"</div>");
-            //}
-            index.AppendLine(@"</div></main></body>");
-            index.AppendLine(@"
-            <style>
-            img { vertical-align: middle; }
-            h3 { display:inline-block; padding-left:4px; }
-            </style>
-            <script>
-            </script>");
-
-            index.AppendLine("</html>");
-            Write(index, "cornerstones", "index");
-        }
-
-        private static void DumpRelics(StringBuilder index)
-        {
-            index.AppendLine($@"<html>{HTML_HEAD}<body>
-            <header> {NAV} </header><main>
-            <div>");
-
-            Dictionary<int, string> difficultyByIndex = GameSettings.difficulties.Where(d => d.index >= 0).ToDictionary(d => d.index, d => "difficulty-" + d.Name.Sane());
-
-            foreach (var danger in GameSettings.Relics.GroupBy(r => r.dangerLevel).OrderByDescending(g => g.Key))
-            {
-                index.AppendLine($@"<h3>{danger.Key}</h3>");
-
-                index.AppendLine($@"<table><tr><th>Name</th><th>Time Needed</th><th>Materials Needed (1 per column)</th><th>Bad Stuff</th></tr>");
-
-                foreach (var relic in danger)
-                {
-                    List<string>[] diffclasses = new List<string>[relic.difficulties.Length];
-                    for (int i = 0; i < relic.difficulties.Length; i++)
-                    {
-                        RelicDifficulty diff = relic.difficulties[i];
-
-                        List<string> diffclass = new() { "filter-difficulty", difficultyByIndex[diff.difficulty] };
-
-                        if (i == relic.difficulties.Length - 1)
-                        {
-                            int diffIndex = diff.difficulty + 1;
-                            while (difficultyByIndex.TryGetValue(diffIndex, out var next))
-                            {
-                                diffclass.Add(next);
-                                diffIndex += 1;
-                            }
-                        }
-
-                        if (i == 0)
-                        {
-                            int diffIndex = diff.difficulty - 1;
-                            while (difficultyByIndex.TryGetValue(diffIndex, out var next))
-                            {
-                                diffclass.Add(next);
-                                diffIndex -= 1;
-                            }
-                        }
-
-                        diffclasses[i] = diffclass;
-                    }
-
-                    index.AppendLine($@"<tr><td>{relic.displayName.Text}</td>");
-
-                    index.AppendLine("<td>");
-                    for (int i = 0; i < relic.difficulties.Length; i++)
-                    {
-                        RelicDifficulty diff = relic.difficulties[i];
-                        List<string> diffclass = diffclasses[i];
-                        index.AppendLine($@"<div class=""{string.Join(" ", diffclass)}"">");
-                        float baseSeconds = diff.workingTimeRatio * relic.workTime;
-                        index.AppendLine(baseSeconds.Minutes().Surround("span", $@"class=""relic-time"" data-base-time=""{baseSeconds}"""));
-                        index.AppendLine($@"</div>");
-                    }
-                    index.AppendLine("</td>");
-
-                    index.AppendLine("<td>");
-                    for (int i = 0; i < relic.difficulties.Length; i++)
-                    {
-                        RelicDifficulty diff = relic.difficulties[i];
-                        List<string> diffclass = diffclasses[i];
-                        index.AppendLine($@"<div class=""{string.Join(" ", diffclass)}"">");
-                        index.AppendLine($@"<div class=""to-solve-sets"">");
-                        foreach (var set in diff.requriedGoods.sets)
-                        {
-                            index.AppendLine($@"<div class=""to-solve-set"">");
-                            foreach (var g in set.goods)
-                                index.AppendLine(g.Cost("solve").Surround("Div"));
-                            index.AppendLine($@"</div>");
-                        }
-                        index.AppendLine($@"</div>");
-                        index.AppendLine($@"</div>");
-                    }
-                    index.AppendLine("</td>");
-
-                    index.AppendLine("<td><div>");
-                    foreach (var tier in relic.effectsTiers.Where(tier => tier.effect.Length > 0))
-                    {
-                        index.AppendLine($@"<div><b class=""relic-effect-category"">Every {tier.timeToStart.Minutes()}:</b></div>");
-                        foreach (var effect in tier.effect)
-                        {
-                            index.AppendLine($@"<div class=""relic-effect"">{effect.Description}</div>");
-                        }
-                    }
-
-                    for (int i = 0; i < relic.difficulties.Length; i++)
-                    {
-                        RelicDifficulty diff = relic.difficulties[i];
-                        if (diff.workingEffects?.Length > 0)
-                        {
-                            List<string> diffclass = diffclasses[i];
-                            index.AppendLine($@"<div class=""{string.Join(" ", diffclass)}"">");
-                            index.AppendLine($@"<div><b class=""relic-effect-category"">While working:</b></div>");
-                            foreach (var effect in diff.workingEffects)
-                            {
-                                index.AppendLine($@"<div class=""relic-effect"">{effect.Description}</div>");
-                            }
-                            index.AppendLine($@"</div>");
-                        }
-                    }
-
-                    index.AppendLine("</div></td></tr>");
-                }
-                index.AppendLine("</table>");
-            }
-
-            //foreach (var relic in GameSettings.Relics.OrderBy(r => r.dangerLevel))
-            //{
-            //    index.AppendLine($@"<div class=""relic"" class=""relic-danger-{relic.dangerLevel}"">");
-            //    index.AppendLine($@"<a class=""section-anchor"" href=""#{relic.Name.Sane()}"" id=""{relic.Name.Sane()}""><h3>{relic.Name}</h3></a>");
-            //    index.AppendLine($@"<h5>Glade danger level: {relic.dangerLevel}</h5>");
-            //    index.AppendLine($@"<h5>{relic.Description}</h5>");
-
-            //    foreach (var tier in relic.effectsTiers.Where(tier => tier.effect.Length > 0))
-            //    {
-            //        index.AppendLine($@"<h4>Active after {tier.timeToStart.Minutes()}:</h4>");
-            //        index.AppendLine($@"<ul>");
-            //        foreach (var effect in tier.effect)
-            //        {
-            //            index.AppendLine($@"<li>{effect.Description}</li>");
-            //        }
-            //        index.AppendLine($@"</ul>");
-            //    }
-
-            //    for (int i = 0; i < relic.difficulties.Length; i++)
-            //    {
-            //        RelicDifficulty diff = relic.difficulties[i];
-            //        index.AppendLine($@"<h4>{GameSettings.difficulties.First(d => d.index == diff.difficulty).GetDisplayName()}{(i == relic.difficulties.Length - 1 ? "+" : "")}: ⏱ {(diff.workingTimeRatio * relic.workTime).Minutes()}️</h4>");
-            //        index.AppendLine($@"<ul>");
-            //        foreach (var set in diff.requriedGoods.sets)
-            //        {
-            //            index.AppendLine($@"<li>{string.Join(" | ", set.goods.Select(good => good.Cost("construction")))}</li>");
-            //        }
-            //        index.AppendLine($@"</ul>");
-            //    }
-
-            //    foreach (var reward in relic.rewardsTiers)
-            //    {
-            //        string amount = "";
-            //        if (reward.rewardsTable != null && reward.rewardsTable.effects.Length > 0)
-            //        {
-            //            var amounts = reward.rewardsTable.amounts;
-            //            amount = " " + ((amounts.x == amounts.y) ? amounts.x.ToString() : $"{amounts.x} - {amounts.y}");
-            //        }
-
-            //        index.AppendLine($@"<h3>After {reward.timeToStart} seconds get{amount}:</h3>");
-            //        index.AppendLine($@"<ul>");
-            //        if (reward.rewards != null && reward.rewards.Length > 0)
-            //            foreach (var thing in reward.rewards)
-            //                index.AppendLine($@"<li>{thing.DescriptionOrLink()}</li>");
-            //        if (reward.rewardsTable != null && reward.rewardsTable.effects.Length > 0)
-            //        {
-            //            foreach (var thing in reward.rewardsTable.effects)
-            //                index.AppendLine($@"<li>{thing.effect.DescriptionOrLink()} chance: {thing.chance}</li>");
-            //        }
-            //        index.AppendLine($@"</ul>");
-            //    }
-
-            //    index.AppendLine($@"<h3>Choose one of these after resolving:</h3>");
-            //    foreach (var rewardSet in relic.rewardsSets)
-            //    {
-            //        var amounts = rewardSet.effects.amounts;
-            //        string amount = (amounts.x == amounts.y) ? amounts.x.ToString() : $"{amounts.x} - {amounts.y}";
-            //        index.AppendLine($@"<h4>{rewardSet.label},    {amount} of:</h4>");
-            //        index.AppendLine($@"<ul>");
-            //        foreach (var thing in rewardSet.effects.effects)
-            //            index.AppendLine($@"<li>{thing.effect.DescriptionOrLink()} {thing.chance}%</li>");
-            //        index.AppendLine($@"</ul>");
-
-            //    }
-
-            //    index.AppendLine(@"</div>");
-            //}
-            index.AppendLine(@"</div></main></body>");
-            index.AppendLine(@"
-            <style>
-.relic {
-    padding: 4px;
-    border: 1px solid black;
-}
-
-ul { margin: 4px; padding-left: 12px }
-img { vertical-align: middle;}
-a {padding-left: 4px;}
-
-            </style>
-            <script>
-            </script>
-");
-
-            index.AppendLine("</html>");
-            Write(index, "relics", "index");
         }
 
         public class OrdersGiven
@@ -1027,7 +379,7 @@ a {padding-left: 4px;}
 
             txt.AppendLine($@"<details>");
             txt.AppendLine("Newcomers".AsSummary());
-            txt.AppendLine($@"<p>{biome.newcomers.minNewcomers} - {biome.newcomers.maxNewcomers} (+ any bonus) will arrive every {biome.newcomers.newComersInterval.Minutes()}, possible races:</p>");
+            txt.AppendLine($@"<p>{biome.newcomers.baseAmount} (+ {biome.newcomers.amountPerYear} per year) will arrive every {biome.newcomers.newComersInterval.Minutes()}, possible races:</p>");
 
             txt.AppendLine($@"<div class=""weighted-table"">");
             {
@@ -1147,12 +499,19 @@ a {padding-left: 4px;}
                         <header>{NAV}</header><main>");
 
             index.AppendLine($@"<table class=""effects-table"">");
-            index.AppendLine($@"<tr><th>Name</th><th>Sources</th></tr>");
+            Html.TableColumns("Icon", "Name", "Sources");
             foreach (var effectSource in effectSources.Values)
             {
+                if(!effectSource.IsUsed()) continue;
+
                 index.AppendLine($@"<tr>");
 
-                index.AppendLine($@"<td><h4>{effectSource.model.DisplayName.Safe()}</h4></td>");
+                var model = effectSource.model;
+                var modelName = model.DisplayName.Safe();
+                var modelIcon = model.GetIcon() == null? "" : model.SmallIcon();
+                index.AppendLine(@$"<td style=""min-width:32px;min-height:32px;"">{modelIcon}</td>");
+                index.Tagged("td", $@"<h4 id=""{model.Name.Sane()}"">{modelName}</h4>");
+
                 index.AppendLine($@"<td class=""effect-source-cell"">");
                 foreach (var source in effectSource.Sources)
                 {
@@ -1167,36 +526,12 @@ a {padding-left: 4px;}
                 index.AppendLine($@"</tr>");
 
                 index.AppendLine($@"<tr>");
-                index.AppendLine($@"<td colspan=2 class=""effect-description-cell"">");
+                index.AppendLine($@"<td colspan=3 class=""effect-description-cell"">");
                 index.AppendLine($@"<p>{effectSource.model.Description.Safe()}</p>");
                 index.AppendLine($@"</td>");
                 index.AppendLine($@"</tr>");
             }
             index.AppendLine($@"</table>");
-
-
-            //            foreach (var effect in GameSettings.effects)
-            //            {
-            //                LogInfo(diff.Name);
-
-            //                foreach (var mod in diff.modifiers)
-            //                {
-            //                    if (!currentEfffect.ContainsKey(mod.effect.Name))
-            //                    {
-            //                        currentEfffect.Add(mod.effect.Name, mod.effect.Description);
-            //                        LogInfo("    " + mod.effect.DisplayName);
-            //                        LogInfo("        " + mod.effect.Description);
-            //                    }
-            //                }
-            //                LogInfo("");
-
-            //            }
-            //<style>
-            //</style>
-            //            <script>
-            //            </script>
-            //");
-
             index.AppendLine(@"</main></body></html>");
             Write(index, "effects", "index");
         }
@@ -1412,6 +747,341 @@ a {padding-left: 4px;}
             Write(index, "orders", "index");
         }
 
+        private static void DumpBuildings(StringBuilder index)
+        {
+            foreach (var source in GameSettings.Buildings)
+            {
+                if (source is AltarModel altar) { }
+                else if (source is BlightPostModel blightPost)
+                {
+                    foreach (var recipe in blightPost.recipes)
+                    {
+                        RecipeRaw raw = Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+
+                        if (!recipe.RequiredGoodsNotValid())
+                        {
+                            raw.ingredients = recipe.requiredGoods;
+                            foreach (var i in raw.ingredients)
+                            {
+                                foreach (var a in i.goods)
+                                {
+                                    InfoFor(a.Name).ingredientIn.Add(raw.Id);
+                                }
+                            }
+                        }
+                    }
+
+                }
+                else if (source is CampModel camp)
+                {
+                    foreach (var recipe in camp.recipes)
+                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
+                }
+                else if (source is DecorationModel decoration) { }
+                else if (source is FarmfieldModel field) { }
+                else if (source is HearthModel hearth) { }
+                else if (source is HouseModel house) { }
+                else if (source is HydrantModel hydrant) { }
+                else if (source is InstitutionModel institution)
+                {
+                    foreach (var recipe in institution.recipes)
+                    {
+                        var raw = Add(source, recipe.servedNeed, 1, 1, "-");
+                        raw.ingredients = new GoodsSet[] { recipe.requiredGoods };
+                        foreach (var i in raw.ingredients)
+                        {
+                            foreach (var a in i.goods)
+                            {
+                                InfoFor(a.Name).ingredientIn.Add(raw.Id);
+                            }
+                        }
+                    }
+                }
+                else if (source is RelicModel relic) { }
+                else if (source is RoadModel road) { }
+                else if (source is StorageModel storage) { }
+                else if (source is TradingPostModel trader) { }
+                else if (source is CollectorModel collector)
+                {
+                    foreach (var recipe in collector.recipes)
+                        Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+                }
+                else if (source is FarmModel farm)
+                {
+                    foreach (var recipe in farm.recipes)
+                    {
+                        RecipeRaw raw = Add(recipe, source, recipe.producedGood, 0, GetTier(recipe.Name));
+                        raw.timeA = ("plant", recipe.plantingTime);
+                        raw.timeB = ("harvest", recipe.harvestTime);
+                    }
+                }
+                else if (source is GathererHutModel gatherer)
+                {
+                    foreach (var recipe in gatherer.recipes)
+                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
+                }
+                else if (source is MineModel mine)
+                {
+                    foreach (var recipe in mine.recipes)
+                        Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+                }
+                else if (source is WorkshopModel workshop)
+                {
+                    foreach (var recipe in workshop.recipes)
+                    {
+                        RecipeRaw raw = Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+
+                        if (!recipe.RequiredGoodsNotValid())
+                        {
+                            raw.ingredients = recipe.requiredGoods;
+                            foreach (var i in raw.ingredients)
+                            {
+                                foreach (var a in i.goods)
+                                {
+                                    InfoFor(a.Name).ingredientIn.Add(raw.Id);
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            try
+            {
+                index.Clear();
+                index.AppendLine($@"<html>{HTML_HEAD}<body>
+                                    <header>{NAV}</header><main>
+                                    <div>Click on an upgrade or level marker to see its rewards and cost to unlock.</div>
+                                    <div class=""capital-upgrade-tree"">");
+
+                int maxLevel = GameSettings.metaConfig.levels.Length;
+                for (int i = 0; i < GameSettings.capitalStructures.Length; i++)
+                {
+                    var structure = GameSettings.capitalStructures[i];
+                    int fromRow = 100, toRow = 0;
+                    foreach (var upgrade in structure.upgrades)
+                    {
+
+                        var data = new UpgradeData()
+                        {
+                            name = upgrade.Name,
+                            cost = upgrade.price.Select(curr => $"{curr.amount}x {curr.Name}").ToArray(),
+                            rewards = upgrade.rewards.Select(reward => new RewardData(reward)).ToArray(),
+                        };
+
+                        int row = 2 * (1 + (maxLevel - upgrade.requiredLevel));
+                        string cell = $"grid-column: {1 + i}; grid-row: {row}";
+                        index.AppendLine($@"<div class=""hex-img required-level-{upgrade.requiredLevel}"" style=""z-index: 2; {cell}"">{upgrade.icon.ImageScaled("capital-upgrade", 64, "Capital Upgrade")}</div>");
+                        index.AppendLine($@"<div class=""hex-frame reward-provider"" style=""z-index: 3; {cell}"" {data.DataAttrib("rewards")}'></div>");
+
+                        if (row < fromRow) fromRow = row;
+                        if (row > toRow) toRow = row;
+
+                    }
+
+                    index.AppendLine($@"<div class=""upgrade-track"" style=""z-index: 1; grid-column: {1 + i}; grid-row: {fromRow} / {toRow + 1}""></div>");
+
+                }
+
+                for (int i = 1; i < (maxLevel); i++)
+                {
+
+                    LevelRewards levelup = new()
+                    {
+                        name = $"Level {i + 1}",
+                        rewards = GameSettings.metaConfig.levels[i].rewards.Select(reward => new RewardData(reward)).ToArray()
+                    };
+
+                    int row = 2 * (1 + (maxLevel - i)) - 1;
+                    index.AppendLine($@"<div class=""upgrade-level reward-provider"" {levelup.DataAttrib("rewards")} style=""z-index: 1; grid-column: 1 / 8; grid-row: {row}"">Level {1 + i}</div>");
+                }
+
+                index.AppendLine($@"
+            <div class=""upgrade-preview"" style=""grid-column: 8; grid-row: 5 / 34"">
+                <div id=""upgrade-panel"">
+                    <h4 id=""upgrade-name"">Name</h4>
+                    <div id=""upgrade-cost"">
+                        <span>3 blah</span>
+                        <span>2 foo</span>
+                        <span>8 bar</span>
+                    </div>
+                    <div id=""upgrade-rewards""></div>
+                </div>
+            </div>");
+
+                index.AppendLine("</div></main></body></html>");
+                Write(index, "upgrades", "index");
+                index.Clear();
+
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogError(ex);
+                throw;
+            }
+
+            try
+            {
+                index.Clear();
+                index.AppendLine($@"<html>{HTML_HEAD}<body>
+                                    <header>{NAV}</header><main>
+                                    <div>");
+                foreach (var biome in GameSettings.biomes)
+                {
+                    DumpBiome(biome);
+                    index.AppendLine($@"<div>{biome.SmallIcon()}<a href=""{biome.Name.Sane()}.html"">{(biome.displayName.HasText ? biome.displayName.Text : biome.Name.StripCategory())}</a></div>");
+                }
+
+                index.AppendLine("</div></main></body></html>");
+                Write(index, "biomes", "index");
+                index.Clear();
+
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogError(ex);
+                throw;
+            }
+
+
+            index.AppendLine($@"<html>{HTML_HEAD}<body>
+            <header>{NAV}</header><main>
+            <div class=""building-categories"">");
+
+            foreach (var cat in MainController.Instance.Settings.Goods.GroupBy(g => g.category.Name))
+            {
+                index.AppendLine($@"<div class=""building-category"">");
+                index.AppendLine($@"<h2>{cat.Key}</h2>");
+                foreach (var g in cat)
+                {
+                    DumpGood(g);
+                    index.AppendLine($@"<div>{g.SmallIcon()}<a href=""{g.Name.Sane()}.html"">{g.Name.StripCategory()}</a></div>");
+                }
+                index.AppendLine($@"</div>");
+            }
+            index.AppendLine(@"</div></main></body>
+            <style>
+            body {
+                background-color: #444751;
+                color: lightgray;
+            }
+            a, header>nav a { color: lightgray; }
+            img { vertical-align: middle; }
+            a { padding-left:4px; }
+            :root { 
+                --accent: gray;
+            }
+            </style></html>");
+            Write(index, "goods", "index");
+
+            index.Clear();
+
+            index.AppendLine($@"<html>{HTML_HEAD}<body>
+            <header>{NAV}</header><main>
+            <table class=""building-categories"">");
+
+            foreach (var cat in GameSettings.Buildings
+                .GroupBy(b => Regex.Replace(b.category.Name, @"\d", ""))
+                .Where(group=>!group.Key.StartsWith("Event"))
+                .Where(group=>!group.Key.StartsWith("Debug"))
+                .Where(group=>!group.Key.StartsWith("Ruins"))
+                .Where(group=>!group.Key.StartsWith("Tutorial"))
+                .OrderByDescending(group => group.Sum(bm => recipeById.Values.Where(r => r.buildingModel == bm).Count())))
+            {
+                index.AppendLine($@"
+                        <tr><th class=""category-name sticky-first"" colspan=""5"">{cat.Key}</th></tr>
+                        <tr>
+                            <th class=""sticky-second"">Name</th>
+                            <th class=""sticky-second"">Produces</th>
+                            <th class=""sticky-second"">Building cost</th>
+                            <th class=""sticky-second"">Movable</th>
+                            <th class=""sticky-second"">Worker bonus</th>
+                        </tr>");
+
+
+                foreach (var b in cat)
+                {
+                    DumpBuilding(b);
+
+                    string move = "👎";
+                    if (b.movable)
+                    {
+                        if (b.HasMovingCost())
+                        {
+                            move = b.movingCost.Cost("construction");
+                        }
+                        else
+                        {
+                            move = "👍 - free";
+                        }
+                    }
+                    string buildCost = b.requiredGoods.Select(g => Div(g.Cost("construction"))).GatherIn("div");
+
+                    static string MakeRecipeLine(RecipeRaw r)
+                    {
+                        if (r.output != null)
+                            return $@"{r.output.SmallIcon()} {r.tier} <a href=""{r.output.good.Link()}""> {r.output.good.displayName.Text} </a>".Surround("div");
+                        else if (r.need != null)
+                            return $@"{r.need.GetIcon().Small("need")} {r.tier} {r.outputName.StripCategory()}".Surround("div");
+                        else
+                            return "-";
+                    }
+
+                    string produces = string.Join("\n", recipeById.Values.Where(r => r.buildingModel == b).Select(MakeRecipeLine)).Surround("div");
+
+                    string bonusRaces = "-";
+                    HashSet<(string, string)> racesWithBonus = new();
+                    foreach (var tag in b.tags)
+                    {
+                        if (buildingTagToRace.TryGetValue(tag.Name, out var list))
+                        {
+                            foreach (var r in list)
+                            {
+                                string bonus = r.Item2?.FormatedDescription ?? "??";
+                                if (r.Item2 is VillagerExtraProductionChancePerkModel extraProdChance)
+                                    bonus = extraProdChance.GetAmountText() + " for double";
+                                else if (r.Item2 is VillagerExtraProductionChanceForProfessionPerkModel extraForProf)
+                                    bonus = extraForProf.GetAmountText() + " for double";
+                                else if (r.Item2 is VillagerResolveEffectPerkModel resolve)
+                                    bonus = resolve.GetAmountText() + " resolve";
+                                racesWithBonus.Add((r.Item1, bonus));
+
+                            }
+                        }
+                    }
+
+                    if (racesWithBonus.Count > 0)
+                    {
+                        bonusRaces = string.Join("\n", racesWithBonus.Select(rr => $"{GameSettings.GetRace(rr.Item1).icon.Small("race")} {rr.Item1} ({rr.Item2.Replace("Hearth_", "")})".Div()));
+                    }
+
+                    index.AppendLine($@"<tr>
+                                            <td>{b.SmallIcon()}<a href=""{b.Name.Sane()}.html"">{b.Name.StripCategory()}</a></td>
+                                            <td>{produces}</td>
+                                            <td>{buildCost}</td>
+                                            <td>{move}</td>
+                                            <td>{bonusRaces}</td>
+                                        </tr>");
+                }
+            }
+            index.AppendLine(@"</table></main></body>
+            <style>
+            body {
+                background-color: #444751;
+                color: lightgray;
+            }
+            :root { 
+                --accent: gray;
+                --text: lightgray;
+            }
+            a, header>nav a { color: lightgray; }
+            img { vertical-align: middle; }
+            a { padding-left:4px; }
+            </style></html>");
+            Write(index, "buildings", "index");
+        }
+
         private static void DumpBuilding(BuildingModel building)
         {
             var txt = Begin(building.Name, building.Description, building.SmallIcon());
@@ -1430,9 +1100,9 @@ a {padding-left: 4px;}
             try
             {
                 var txt = Begin(good.Name, good.Description, good.icon.Normal("good-big"));
-
+                DumpGoodPrices(good, txt);
                 if (goodInfo.ContainsKey(good.Name))
-                {
+                { 
                     txt.AppendLine($@"<h3>Produced By</h3>");
                     foreach (var recipe in FindProducersOf(good.Name))
                         DumpRecipe(txt, recipe.building, recipe, false, LinkType.Building);
@@ -1459,6 +1129,19 @@ a {padding-left: 4px;}
                 LogInfo("ERROR: good: " + good.Name);
                 Plugin.LogError(ex);
             }
+        }
+
+        private static void DumpGoodPrices(GoodModel good, StringBuilder txt){
+                var diffclasses = GameSettings.difficulties.Select(s=> "difficulty-" + s.name.Sane()).ToArray();
+                var prestige9Index = Array.IndexOf(diffclasses, diffclasses.First(s=>s.Contains("IX")));
+                var diffs1 = "filter-difficulty " + string.Join(" ", diffclasses, 0, prestige9Index);
+                var diffs2 = "filter-difficulty " + string.Join(" ", diffclasses, prestige9Index, diffclasses.Length - prestige9Index);
+                
+                var sellValue = GameMB.TradeService.GetValueInCurrency(good.Name, 1);
+                var sellValueHalved = (GameMB.TradeService as TradeService).RoundTradeValue(sellValue / 2f, 1);
+                txt.AppendLine($@"<div class=""{diffs1}""><b>Sells for:</b> {sellValue}</div>");
+                txt.AppendLine($@"<div class=""{diffs2}""><b>Sells for:</b> {sellValueHalved}</div>");
+                txt.AppendLine($@"<div><b>Purchased for:</b> {GameMB.TradeService.GetBuyValueInCurrency(good.Name, 1)}</div>");
         }
 
         public enum LinkType
@@ -1508,8 +1191,6 @@ a {padding-left: 4px;}
             }
             EndRecipeEmit(txt);
         }
-
-        public static string WikiRoot => @"C:\Users\worce\source\repos\data-wiki-root\data-wiki-raw\";
 
         public static void Write(StringBuilder txt, string directory, string name)
         {
@@ -1610,7 +1291,9 @@ a {padding-left: 4px;}
                     <a href=""/data-wiki/orders"">Orders</a>
                     <a href=""/data-wiki/relics"">Glade Events</a>
                     <a href=""/data-wiki/cornerstones"">Cornerstones</a>
+                    <a href=""/data-wiki/traders"">Traders</a>
                     <a href=""/data-wiki/biomes"">Biomes</a>
+                    <a href=""/data-wiki/mysteries"">Forest Mysteries</a>
                     <a href=""/data-wiki/upgrades"">Upgrades</a>
                     <a href=""/data-wiki/effects"">Effects</a>
                     <a href=""/data-wiki/console-commands"">Commands</a>
@@ -1819,242 +1502,4 @@ a {padding-left: 4px;}
         }
     }
 
-    public static class Ext
-    {
-        private static readonly Dictionary<Type, string> Aliases = new Dictionary<Type, string>() {
-                { typeof(byte), "byte" },
-                { typeof(sbyte), "sbyte" },
-                { typeof(short), "short" },
-                { typeof(ushort), "ushort" },
-                { typeof(int), "int" },
-                { typeof(uint), "uint" },
-                { typeof(long), "long" },
-                { typeof(ulong), "ulong" },
-                { typeof(float), "float" },
-                { typeof(double), "double" },
-                { typeof(decimal), "decimal" },
-                { typeof(object), "object" },
-                { typeof(bool), "bool" },
-                { typeof(char), "char" },
-                { typeof(string), "string" },
-                { typeof(void), "void" }
-        };
-        public static string SugarName(this Type type)
-        {
-            if (Aliases.TryGetValue(type, out var name))
-                return name;
-            else
-                return type.Name;
-        }
-        public static string Safe(this string str)
-        {
-            if (str == null) return "[null]";
-
-            return str.Replace(">Missing key<", "[unknown]");
-        }
-        private static Regex goodWithCategory = new(@"\[(.*?)\] (.*)");
-
-        public static string Div(this string contents) => contents.Surround("div");
-
-        public static string Cost(this GoodRef good, string costType)
-        {
-            return @$"<span class=""cost-{costType}"" data-base-cost=""{good.amount}"">{good.amount}</span>× {good.SmallIcon()} <a href=""{good.good.Link()}""> {good.good.displayName.Text}</a>";
-        }
-
-        public static string AsSummary(this string str) => str.Surround("summary");
-
-        public static string Surround(this string str, string with)
-        {
-            return $"<{with}>{str}</{with}>";
-        }
-
-        public static string GatherIn(this IEnumerable<string> contents, string with)
-        {
-            return $"<{with}>{string.Join("\n", contents)}</{with}>";
-        }
-
-        public static string GatherIn(this IEnumerable<string> contents, string with, string attribs)
-        {
-            return $"<{with} {attribs}>{string.Join("\n", contents)}</{with}>";
-        }
-
-        public static string Surround(this string str, string with, string attribs)
-        {
-            return $"<{with} {attribs}>{str}</{with}>";
-        }
-
-        public static string DescriptionOrLink(this EffectModel effect)
-        {
-            if (effect is GoodsEffectModel goods)
-            {
-                return $@"{goods.good.amount}× {goods.good.SmallIcon()} <a href=""{goods.good.good.Link()}"">{goods.good.good.Name.StripCategory()}</a>";
-            }
-            else
-            {
-                return effect.Description;
-            }
-        }
-
-        public static string DataAttrib(this object obj, string suffix)
-        {
-            return $@"data-{suffix}='{JSON.ToJson(obj).Replace("'", "`")}'";
-        }
-
-        public static string Minutes(this float seconds)
-        {
-            int mins = (int)(seconds / 60);
-            int secs = (int)(seconds % 60);
-
-            return mins.ToString().PadLeft(2, '0') + ':' + secs.ToString().PadLeft(2, '0');
-        }
-
-        public static string StripCategory(this string s)
-        {
-            var match = goodWithCategory.Match(s);
-            if (match.Success)
-                return goodWithCategory.Match(s).Groups[2].Value;
-            else
-                return s;
-        }
-
-        public static string Link(this string s, string directory)
-        {
-            return $"../{directory}/{s.Sane()}.html";
-        }
-
-        public static string Sane(this string s)
-        {
-            return s.Replace(' ', '_');
-        }
-
-        public static string Link(this SO so)
-        {
-            if (so is BuildingModel)
-                return so.Name.Link("buildings");
-            else if (so is GoodModel)
-                return so.Name.Link("goods");
-            else if (so is RecipeModel recipe)
-                return recipe.GetProducedGood().Link("goods");
-            else
-                throw new NotSupportedException();
-        }
-
-        public class SpriteReference : IEquatable<SpriteReference>
-        {
-            public string group;
-            public string source_image;
-            public float source_x, source_y;
-            public float source_w, source_h;
-
-            public int out_w, out_h;
-
-            public string Render => $"{group};{source_image};{source_x};{source_y};{source_w};{source_h};{out_w};{out_h}";
-
-            public override bool Equals(object obj)
-            {
-                return Equals(obj as SpriteReference);
-            }
-
-            public bool Equals(SpriteReference other)
-            {
-                return other is not null &&
-                       group == other.group &&
-                       source_image == other.source_image &&
-                       source_x == other.source_x &&
-                       source_y == other.source_y &&
-                       source_w == other.source_w &&
-                       source_h == other.source_h &&
-                       out_w == other.out_w &&
-                       out_h == other.out_h;
-            }
-
-            public override int GetHashCode()
-            {
-                int hashCode = 1965452847;
-                hashCode = hashCode * -1521134295 + group.GetHashCode();
-                hashCode = hashCode * -1521134295 + source_image.GetHashCode();
-                hashCode = hashCode * -1521134295 + source_x.GetHashCode();
-                hashCode = hashCode * -1521134295 + source_y.GetHashCode();
-                hashCode = hashCode * -1521134295 + source_w.GetHashCode();
-                hashCode = hashCode * -1521134295 + source_h.GetHashCode();
-                hashCode = hashCode * -1521134295 + out_w.GetHashCode();
-                hashCode = hashCode * -1521134295 + out_h.GetHashCode();
-                return hashCode;
-            }
-
-            public static bool operator ==(SpriteReference left, SpriteReference right)
-            {
-                return EqualityComparer<SpriteReference>.Default.Equals(left, right);
-            }
-
-            public static bool operator !=(SpriteReference left, SpriteReference right)
-            {
-                return !(left == right);
-            }
-        }
-
-        public static Dictionary<SpriteReference, int> spritesUsed = new();
-
-        public static string ImageScaled(this Sprite icon, string group, int target, string title = null)
-        {
-            Dumper.Write(icon.texture);
-            float scale = (icon.textureRect.width / target);
-            int w = target;
-            int h = target;
-            List<(string, string)> attribs = new();
-            if (title != null)
-                attribs.Add(("title", title));
-
-            SpriteReference spriteRef = new()
-            {
-                group = group,
-                source_image = icon.texture.name,
-                source_w = icon.textureRect.width,
-                source_h = icon.textureRect.height,
-                source_x = icon.textureRect.x,
-                source_y = icon.textureRect.y,
-                out_w = w,
-                out_h = h,
-            };
-
-            if (!spritesUsed.TryGetValue(spriteRef, out int id))
-            {
-                id = spritesUsed.Count;
-                spritesUsed[spriteRef] = id;
-            }
-
-            return $@"<img {string.Join(" ", attribs.Select(attrib => @$"{attrib.Item1}=""{attrib.Item2}"""))} src=""{id}.IMG_SRC"" width={w} height={h} style=""object-position: {id}.IMG_X {id}.IMG_Y; object-fit: none; width: {w}px; height: {h}px;""/>";
-        }
-
-
-        public static string SmallIcon(this TraderModel trader) => trader.icon.Small("trader", trader.displayName.Text);
-        public static string SmallIcon(this BiomeModel biome) => biome.icon.Small("biome", biome.displayName.Text);
-        public static string SmallIcon(this OrderModel order) => order.GetIcon().Small("order", order.displayName.Text);
-        public static string SmallIcon(this GoodModel good) => good.icon.Small("good", good.displayName.Text);
-        public static string SmallIcon(this GoodRef good) => good.good.SmallIcon();
-        public static string SmallIcon(this BuildingModel b) => b.icon.Small("building", b.displayName.Text);
-        public static string SmallIcon(this EffectModel e) => e.GetIcon().Small("effect", e.DisplayName);
-
-
-
-
-        public static string Small(this Sprite sprite, string group, string title = null) => sprite.ImageScaled(group, 32, title.Safe());
-        public static string Normal(this Sprite sprite, string group, string title = null) => sprite.ImageScaled(group, 128, title.Safe());
-    }
-
-    public class DumpPatch : IKeybindInjector
-    {
-        public static InputAction dumpACtion;
-
-        public void Inject()
-        {
-            dumpACtion = new("select_race_1", InputActionType.Button, expectedControlType: "Button");
-            dumpACtion.AddBinding("<Keyboard>/tab", groups: "Keyboard");
-            Plugin.LogInfo("Added binding for dumper");
-
-            dumpACtion.performed += Dumper.DoDump;
-
-            dumpACtion.Enable();
-        }
-    }
 }

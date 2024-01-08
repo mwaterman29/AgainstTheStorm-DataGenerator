@@ -60,11 +60,6 @@ namespace BubbleStormTweaks
     }
     public class AssetLoader
     {
-        public static Sprite LoadInternal(string file, Vector2Int size)
-        {
-            return Image2Sprite.Create(Path.Combine(Plugin.Dir, file + ".png"), size);
-        }
-
         // Loosely based on https://forum.unity.com/threads/generating-sprites-dynamically-from-png-or-jpeg-files-in-c.343735/
         public static class Image2Sprite
         {
@@ -125,32 +120,6 @@ namespace BubbleStormTweaks
             public AssetBundle bundle;
             public UnityEngine.Object value = null;
         };
-
-        public static void AddBundle(string bundleName)
-        {
-            try
-            {
-                AssetBundle bundle;
-
-                //RemoveBundle(bundleName, true);
-                Plugin.LogInfo("Adding bundle with path: " + bundleName);
-
-                var path = Path.Combine(Plugin.Dir, bundleName);
-
-                bundle = AssetBundle.LoadFromFile(path);
-                if (!bundle) throw new Exception($"Failed to load AssetBundle! {path}");
-
-                foreach (var asset in bundle.GetAllAssetNames())
-                {
-                    Plugin.LogInfo("Priming asset reference: " + asset);
-                    assets[asset] = new() { bundle = bundle };
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.LogError(ex);
-            }
-        }
     }
 
     public static class SettingsHelper
