@@ -397,3 +397,5 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 lib/Assembly-CSharp.public.dll
+
+ATS src/

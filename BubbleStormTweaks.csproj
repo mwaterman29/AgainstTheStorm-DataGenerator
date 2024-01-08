@@ -7,6 +7,9 @@
     <Version>1.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
+    <ApplicationIcon />
+    <OutputType>Exe</OutputType>
+    <StartupObject />
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,29 +20,26 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<!-- Main Wrath Assembly, Publicized -->
-		<Reference Include="Assembly-CSharp">
-			<HintPath>$(ProjectDir)lib\Assembly-CSharp.public.dll</HintPath>
-			<Private>false</Private>
-		</Reference>
+		<!-- Grab references from Against The Storm -->
 		<Reference Include="UniRx">
-			<HintPath>$(StormPath)\\Against the Storm_Data\\Managed\\UniRx.dll</HintPath>
+			<HintPath>G:\Gaming Time\Steam\steamapps\common\Against the Storm\Against the Storm_Data\\Managed\\UniRx.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="Unity.InputSystem">
-			<HintPath>$(StormPath)\\Against the Storm_Data\\Managed\\Unity.InputSystem.dll</HintPath>
+      <HintPath>G:\Gaming Time\Steam\steamapps\common\Against the Storm\Against the Storm_Data\Managed\Unity.InputSystem.dll</HintPath>
+			<!-- <HintPath>G:\Gaming Time\Steam\steamapps\common\Against the Storm\Against the Storm_Data\\Managed\\Unity.InputSystem.dll</HintPath> -->
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="Sirenix.Serialization">
-			<HintPath>$(StormPath)\\Against the Storm_Data\\Managed\\Sirenix.Serialization.dll</HintPath>
+			<HintPath>G:\Gaming Time\Steam\steamapps\common\Against the Storm\Against the Storm_Data\\Managed\\Sirenix.Serialization.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="QFSW.QC">
-			<HintPath>$(StormPath)\\Against the Storm_Data\\Managed\\QFSW.QC.dll</HintPath>
+			<HintPath>G:\Gaming Time\Steam\steamapps\common\Against the Storm\Against the Storm_Data\\Managed\\QFSW.QC.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="Newtonsoft.Json">
-			<HintPath>$(StormPath)\\Against the Storm_Data\\Managed\\Newtonsoft.Json.dll</HintPath>
+			<HintPath>G:\Gaming Time\Steam\steamapps\common\Against the Storm\Against the Storm_Data\\Managed\\Newtonsoft.Json.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
@@ -54,7 +54,7 @@
 			<Assembly Include="$(OutputPath)\$(AssemblyName).dll" />
 		</ItemGroup>
 
-		<Copy SourceFiles="@(Assembly)" DestinationFolder="$(StormPath)\BepInEx\plugins" />
+		<Copy SourceFiles="@(Assembly)" DestinationFolder="G:\Gaming Time\Steam\steamapps\common\Against the StormBepInEx\plugins" />
 	</Target>
 
 
