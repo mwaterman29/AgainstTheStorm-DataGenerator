@@ -399,3 +399,7 @@ FodyWeavers.xsd
 lib/Assembly-CSharp.public.dll
 
 ATS src/
+
+Assembly-CSharp.dll
+
+Assembly-CSharp-publicized.dll
