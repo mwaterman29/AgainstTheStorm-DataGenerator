@@ -259,7 +259,7 @@ namespace BubbleStormTweaks
             return info;
         }
 
-        private static RecipeRaw Add(BuildingModel source, NeedModel need, int outputCount, float prodTime, string tier)
+        public static RecipeRaw Add(BuildingModel source, NeedModel need, int outputCount, float prodTime, string tier)
         {
             RecipeRaw raw = new(source, need, outputCount, prodTime, tier);
             recipeById[raw.Id] = raw;
@@ -267,7 +267,7 @@ namespace BubbleStormTweaks
             return raw;
         }
 
-        private static RecipeRaw Add(RecipeModel recipe, BuildingModel source, GoodRef good, float prodTime, string tier)
+        public static RecipeRaw Add(RecipeModel recipe, BuildingModel source, GoodRef good, float prodTime, string tier)
         {
             RecipeRaw raw = new(source, good, prodTime, tier);
             recipeById[raw.Id] = raw;
@@ -1462,7 +1462,7 @@ namespace BubbleStormTweaks
 
         }
 
-        private static string GetTier(string name)
+        public static string GetTier(string name)
         {
             if (name.EndsWith("T3"))
                 return "★★★";

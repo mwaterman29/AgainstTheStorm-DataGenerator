@@ -52,7 +52,9 @@ namespace BubbleStormTweaks
         }
 
         private void Update(){
-            if (dumpKeyBind.IsDown()) Dumper.DoDump();
+            //if (dumpKeyBind.IsDown()) Dumper.DoDump();
+            if (dumpKeyBind.IsDown())
+                DumpToJson.DumpFull();
         }
 
         private void OnDestroy()
