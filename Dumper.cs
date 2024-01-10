@@ -28,7 +28,7 @@ namespace BubbleStormTweaks
     {
         public static void LogInfo(object data) => Plugin.LogInfo(data);
         public static Settings GameSettings => Plugin.GameSettings;
-        public static string WikiRoot => @"C:\Against the Storm\data-wiki-raw\";
+        public static string JsonFolder => @"G:\_Programming\ATS Data Dump\";
 
         public class RewardData
         {
@@ -135,7 +135,7 @@ namespace BubbleStormTweaks
             DumpEffects(index);
             index.Clear();
 
-            File.WriteAllLines(Path.Combine(WikiRoot, "sprites_used.txt"), Ext.spritesUsed.Select(s => s.Render));
+            File.WriteAllLines(Path.Combine(JsonFolder, "sprites_used.txt"), Ext.spritesUsed.Select(s => s.Render));
 
             LogInfo(" === DUMP COMPLETE ===");
         }
@@ -1194,7 +1194,7 @@ namespace BubbleStormTweaks
 
         public static void Write(StringBuilder txt, string directory, string name)
         {
-            string path = WikiRoot;
+            string path = JsonFolder;
             if (directory != null)
                 path = Path.Combine(path, directory);
             if (!Directory.Exists(path))
