@@ -42,43 +42,45 @@ public static class DumpToJson
     {
         List<SerializableRecipe> recipes = new List<SerializableRecipe>();
 
-        foreach (var source in GameSettings.Buildings)
+        foreach(var r in Dumper.DumpBuildings(null))
         {
-            if (source is CampModel camp)
-            {
-                foreach (var recipe in camp.recipes)
-                {
-                    var recipeRaw = Dumper.Add(recipe, source, recipe.refGood, recipe.productionTime, Dumper.GetTier(recipe.Name));
-                    var serializableRecipe = ConvertRecipe(recipeRaw);
-                    recipes.Add(serializableRecipe);
-                }
-            }
+            if(r != null)
+                recipes.Add(ConvertRecipe(r));
         }
 
         string recipesString = JSON.ToJson(recipes);
-        File.WriteAllText(Path.Combine(JsonFolder, "camp_recipes.json"), recipesString);
+        File.WriteAllText(Path.Combine(JsonFolder, "recipes.json"), recipesString);
     }
 
     public static SerializableRecipe ConvertRecipe(Dumper.RecipeRaw recipeRaw)
     {
         List<string> ing = new List<string>();
-        foreach(var gs in recipeRaw.ingredients)
+        if(recipeRaw.ingredients != null)
         {
-            foreach(var g in gs.goods)
+            foreach (var gs in recipeRaw.ingredients)
             {
-                ing.Add($"{g.amount}:{g.Name}");   
+                if(gs != null)
+                {
+                    foreach (var g in gs.goods)
+                    {
+                        if (g != null)
+                            ing.Add($"{g.amount}:{g.Name}");
+                        else
+                            ing.Add($"(null)");
+                    }
+                }
             }
         }
 
         var ret = new SerializableRecipe(
                 recipeRaw.tier.Count(c => c == '★'),
-                recipeRaw.output.Name,
-                recipeRaw.output.amount,
+                (recipeRaw.output != null) ? recipeRaw.output.Name : "(no output?)",
+                (recipeRaw.output != null) ? recipeRaw.output.amount : -1,
                 ing.ToArray(),
                 new int[] { },
                 new string[] { },
                 new int[] { },
-                (int)recipeRaw.timeA.Item2
+                0
                 );
 
         return ret;

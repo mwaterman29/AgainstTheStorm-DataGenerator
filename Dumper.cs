@@ -747,8 +747,10 @@ namespace BubbleStormTweaks
             Write(index, "orders", "index");
         }
 
-        private static void DumpBuildings(StringBuilder index)
+        public static List<RecipeRaw> DumpBuildings(StringBuilder index)
         {
+            var allRecipes = new List<RecipeRaw>();
+
             foreach (var source in GameSettings.Buildings)
             {
                 if (source is AltarModel altar) { }
@@ -769,13 +771,18 @@ namespace BubbleStormTweaks
                                 }
                             }
                         }
+
+                        allRecipes.Add(raw);
                     }
 
                 }
                 else if (source is CampModel camp)
                 {
                     foreach (var recipe in camp.recipes)
-                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
+                    {
+                        var raw = Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
+                        allRecipes.Add(raw);
+                    }
                 }
                 else if (source is DecorationModel decoration) { }
                 else if (source is FarmfieldModel field) { }
@@ -795,6 +802,8 @@ namespace BubbleStormTweaks
                                 InfoFor(a.Name).ingredientIn.Add(raw.Id);
                             }
                         }
+                        allRecipes.Add(raw);
+
                     }
                 }
                 else if (source is RelicModel relic) { }
@@ -804,7 +813,11 @@ namespace BubbleStormTweaks
                 else if (source is CollectorModel collector)
                 {
                     foreach (var recipe in collector.recipes)
-                        Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+                    {
+                        var raw = Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+                        allRecipes.Add(raw);
+                    }
+                    
                 }
                 else if (source is FarmModel farm)
                 {
@@ -813,17 +826,18 @@ namespace BubbleStormTweaks
                         RecipeRaw raw = Add(recipe, source, recipe.producedGood, 0, GetTier(recipe.Name));
                         raw.timeA = ("plant", recipe.plantingTime);
                         raw.timeB = ("harvest", recipe.harvestTime);
+                        allRecipes.Add(raw);
                     }
                 }
                 else if (source is GathererHutModel gatherer)
                 {
                     foreach (var recipe in gatherer.recipes)
-                        Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name));
+                        allRecipes.Add(Add(recipe, source, recipe.refGood, recipe.productionTime, GetTier(recipe.Name)));
                 }
                 else if (source is MineModel mine)
                 {
                     foreach (var recipe in mine.recipes)
-                        Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name));
+                        allRecipes.Add(Add(recipe, source, recipe.producedGood, recipe.productionTime, GetTier(recipe.Name)));
                 }
                 else if (source is WorkshopModel workshop)
                 {
@@ -842,10 +856,14 @@ namespace BubbleStormTweaks
                                 }
                             }
                         }
+
+                        allRecipes.Add(raw);
                     }
                 }
 
             }
+
+            return allRecipes;
 
             try
             {
