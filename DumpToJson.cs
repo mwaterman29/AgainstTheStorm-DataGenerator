@@ -54,34 +54,47 @@ public static class DumpToJson
 
     public static SerializableRecipe ConvertRecipe(Dumper.RecipeRaw recipeRaw)
     {
-        List<string> ing = new List<string>();
+        List<string> ing1 = new List<string>();
+        List<int> count1 = new List<int>();
+        List<string> ing2 = new List<string>();
+        List<int> count2 = new List<int>();
+
         if(recipeRaw.ingredients != null)
         {
-            foreach (var gs in recipeRaw.ingredients)
+            for(int i = 0; i < recipeRaw.ingredients.Length; i++)
             {
-                if(gs != null)
+                foreach (var g in recipeRaw.ingredients[i].goods)
                 {
-                    foreach (var g in gs.goods)
+                    if (g != null)
                     {
-                        if (g != null)
-                            ing.Add($"{g.amount}:{g.Name}");
-                        else
-                            ing.Add($"(null)");
+                        if(i == 0)
+                        {
+                            ing1.Add($"{g.DisplayName}");
+                            count1.Add(g.amount);
+                        }
+                        if(i == 1)
+                        {
+                            ing2.Add($"{g.DisplayName}");
+                            count2.Add(g.amount);
+                        }
                     }
                 }
+
             }
         }
 
         var ret = new SerializableRecipe(
-                recipeRaw.tier.Count(c => c == '★'),
-                (recipeRaw.output != null) ? recipeRaw.output.Name : "(no output?)",
-                (recipeRaw.output != null) ? recipeRaw.output.amount : -1,
-                ing.ToArray(),
-                new int[] { },
-                new string[] { },
-                new int[] { },
+                tier: recipeRaw.tier.Count(c => c == '★'),
+                output: (recipeRaw.output != null) ? recipeRaw.output.DisplayName : "(no output?)",
+                outputCount: (recipeRaw.output != null) ? recipeRaw.output.amount : -1,
+                producedBy: recipeRaw.building,
+                ing1.ToArray(),
+                count1.ToArray(),
+                ing2.ToArray(),
+                count2.ToArray(),
                 0
                 );
+
 
         return ret;
     }
@@ -89,22 +102,25 @@ public static class DumpToJson
     [System.Serializable]
     public class SerializableRecipe
     {
-        public int tier;
         public string output;
+        public int tier;
         public int outputCount;
+        public string producedBy;
         public string[] ingredientsFirst;
         public int[] ingredientsFirstCounts;
         public string[] ingredientsSecond;
         public int[] ingredientsSecondCounts;
         public int timeInSeconds;
-        public SerializableRecipe(int tier, string output, int outputCount,
-                          string[] ingredientsFirst, int[] ingredientsFirstCounts,
-                          string[] ingredientsSecond, int[] ingredientsSecondCounts,
-                          int timeInSeconds)
+
+        public SerializableRecipe(int tier, string output, int outputCount, string producedBy,
+                                  string[] ingredientsFirst, int[] ingredientsFirstCounts,
+                                  string[] ingredientsSecond, int[] ingredientsSecondCounts,
+                                  int timeInSeconds)
         {
             this.tier = tier;
             this.output = output;
             this.outputCount = outputCount;
+            this.producedBy = producedBy;
             this.ingredientsFirst = ingredientsFirst;
             this.ingredientsFirstCounts = ingredientsFirstCounts;
             this.ingredientsSecond = ingredientsSecond;
