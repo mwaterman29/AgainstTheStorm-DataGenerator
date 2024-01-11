@@ -153,11 +153,33 @@ public static class DumpToJson
                         goodNodes.Add(existingNode);
                     }
 
-                    if (!existingNode.producedBy.Contains($"{sr.producedBy}:T{sr.tier}"))
-                        existingNode.producedBy.Add($"{sr.producedBy}:T{sr.tier}");
+                    //if (!existingNode.producedBy.Contains($"{sr.producedBy}:T{sr.tier}"))
+                    //    existingNode.producedBy.Add($"{sr.producedBy}:T{sr.tier}");
                     if (!existingNode.usedIn.Contains(sr.output))
                         existingNode.usedIn.Add(sr.output);
                 }
+
+                //Check output as well
+                GoodNode existingNodeOut = goodNodes.Find(gn => gn.id == sr.output);
+                if (existingNodeOut == null)
+                {
+                    existingNodeOut = new GoodNode(sr.output, sr.output, new List<string>(), new List<string>());
+                    goodNodes.Add(existingNodeOut);
+                }
+
+                //Ensure recipe ingredients are appended when they're found
+                if (existingNodeOut.usesFirst == null)
+                    existingNodeOut.usesFirst = new List<string>();
+                if (existingNodeOut.usesSecond == null)
+                    existingNodeOut.usesSecond = new List<string>();
+                existingNodeOut.usesFirst.AddRange(sr.ingredientsFirst);
+                existingNodeOut.usesFirst = existingNodeOut.usesFirst.Distinct().ToList();
+                existingNodeOut.usesSecond.AddRange(sr.ingredientsSecond);
+                existingNodeOut.usesSecond = existingNodeOut.usesSecond.Distinct().ToList();
+
+                if (!existingNodeOut.producedBy.Contains($"{sr.producedBy}:T{sr.tier}"))
+                    existingNodeOut.producedBy.Add($"{sr.producedBy}:T{sr.tier}");
+
             }
             catch(Exception e)
             {
@@ -274,6 +296,8 @@ public static class DumpToJson
     {
         public string id;
         public string label;
+        public List<string> usesFirst;
+        public List<string> usesSecond;
         public List<string> producedBy;
         public List<string> usedIn;
 
