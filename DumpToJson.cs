@@ -29,129 +29,158 @@ public static class DumpToJson
     public static Settings GameSettings => Plugin.GameSettings;
     public static string JsonFolder => @"G:\_Programming\ATS Data Dump\";
 
+
     public static void DumpFull()
     {
-        LogInfo("Starting Dump to JSON");
+        if(!started)
+        {
+            started = true;
+            LogInfo("Starting Dump to JSON");
+        }
 
-        DumpRecipes();
-
-        LogInfo("Finished Dump to JSON");
+        if(srI == 0 || srI <= recipes.Count)
+        {
+            DumpRecipes();
+        }
+        if(srI != 0 && srI >= recipes.Count)
+        {
+            LogInfo("Finished Dump to JSON");
+        }
     }
 
     public static List<SerializableRecipe> recipes = new List<SerializableRecipe>();
     public static List<RecipeEdge> recipeEdges = new List<RecipeEdge>();
     public static List<GoodNode> goodNodes = new List<GoodNode>();
     public static List<Building> buildings = new List<Building>();
+    public static int srI;
+    public static bool started = false;
 
     public static void DumpRecipes()
     {
-
-        foreach(var r in Dumper.DumpBuildings(null))
+        if(recipes.Count == 0)
         {
-            if(r != null)
-                recipes.Add(ConvertRecipe(r));
-        }
+            foreach (var r in Dumper.DumpBuildings(null))
+            {
+                if (r != null)
+                    recipes.Add(ConvertRecipe(r));
+            }
 
-        LogInfo($"All recipes dumped from original buildings, converting:");
+            LogInfo($"All recipes dumped from original buildings, converting:");
+        }
 
         //Populate JSON contents
-
-        for(int srI = 0; srI < 10; srI++)//foreach(SerializableRecipe sr in recipes)
+        int thisStepMax = Math.Min(recipes.Count, srI + 10);
+        LogInfo($"Dumping from {srI} to {thisStepMax} of total {recipes.Count}");
+        for(; srI < thisStepMax; srI++)//foreach(SerializableRecipe sr in recipes)
         {
+
             SerializableRecipe sr = recipes[srI];
-            LogInfo($"Convering recipe for {sr.output}, Tier {sr.tier} from {sr.producedBy}");
 
-            //First, add this recipe to what the building produces:
-            Building producedBy = buildings.Find(b => b.id == sr.producedBy);
-            if (producedBy != null)
+            if (sr.output == "(no output)")
+                continue;
+
+            LogInfo($"Convering recipe for {sr.output}, Tier {sr.tier} from {sr.producedBy} [{srI}]");
+            try
             {
-                producedBy.produces.Add(sr);
-            }
-            else
-            {
-                Building temp = new Building(sr.producedBy, new List<SerializableRecipe>(), -1);
-                temp.produces.Add(sr);
-                buildings.Add(temp);
-            }
-
-            //For each possible combination of goods in the recipe, add or update an edge in the graph:
-            List<string> allIngredients = new List<string>();
-            allIngredients.AddRange(sr.ingredientsFirst);
-            allIngredients.AddRange(sr.ingredientsSecond);
-
-            List<int> allCounts = new List<int>();
-            allCounts.AddRange(sr.ingredientsFirstCounts);
-            allCounts.AddRange(sr.ingredientsSecondCounts);
-
-            for (int i = 0; i < allIngredients.Count; i++)
-            {
-                string input = allIngredients[i];
-                string output = sr.output;
-                RecipeEdge existingEdge = recipeEdges.Find(e => e.id == $"{input}->{output}");
-
-                if(existingEdge == null)
+                //First, add this recipe to what the building produces:
+                Building producedBy = buildings.Find(b => b.id == sr.producedBy);
+                if (producedBy != null)
                 {
-                    existingEdge = new RecipeEdge($"{input}->{output}", input, output, string.Empty, string.Empty, string.Empty, string.Empty);
-                    recipeEdges.Add(existingEdge);
+                    producedBy.produces.Add(sr);
+                }
+                else
+                {
+                    Building temp = new Building(sr.producedBy, new List<SerializableRecipe>(), -1);
+                    temp.produces.Add(sr);
+                    buildings.Add(temp);
                 }
 
-                //Update tiers
-                switch (sr.tier)
-                {
-                    case 0:
-                        if (!string.IsNullOrEmpty(existingEdge.RT0))
-                            return;
-                        existingEdge.RT0 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
-                        break;
-                    case 1:
-                        if (!string.IsNullOrEmpty(existingEdge.RT1))
-                            return;
-                        existingEdge.RT1 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
-                        break;
-                    case 2:
-                        if (!string.IsNullOrEmpty(existingEdge.RT2))
-                            return;
-                        existingEdge.RT2 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
-                        break;
-                    case 3:
-                        if (!string.IsNullOrEmpty(existingEdge.RT3))
-                            return;
-                        existingEdge.RT3 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
-                        break;
-                    default:
-                        LogInfo($"Error: sr {sr.output} sr.tier is{sr.tier} - outside range 0-3.");
-                        return;
-                }
-            }
+                //For each possible combination of goods in the recipe, add or update an edge in the graph:
+                List<string> allIngredients = new List<string>();
+                allIngredients.AddRange(sr.ingredientsFirst);
+                allIngredients.AddRange(sr.ingredientsSecond);
 
-            //For each good in the recipe, add a node to the graph, if it doesn't already exist:
-            foreach(string ingredient in allIngredients)
-            {
-                GoodNode existingNode = goodNodes.Find(gn => gn.id == ingredient);
-                if(existingNode == null)
+                List<int> allCounts = new List<int>();
+                allCounts.AddRange(sr.ingredientsFirstCounts);
+                allCounts.AddRange(sr.ingredientsSecondCounts);
+
+                if(allIngredients.Count != allCounts.Count)
                 {
-                    existingNode = new GoodNode(ingredient, ingredient, new List<string>(), new List<string>());
+                    LogInfo($"Count mismatch: {allIngredients.Count} to {allCounts.Count}!");
+                    return;
                 }
-                
-                if(!existingNode.producedBy.Contains($"{sr.producedBy}:T{sr.tier}"))
-                    existingNode.producedBy.Add($"{sr.producedBy}:T{sr.tier}");
-                if (!existingNode.usedIn.Contains(sr.output)) 
-                    existingNode.usedIn.Add(sr.output);
+
+                for (int i = 0; i < allIngredients.Count; i++)
+                {
+                    string input = allIngredients[i];
+                    string output = sr.output;
+                    RecipeEdge existingEdge = recipeEdges.Find(e => e.id == $"{input}->{output}");
+
+                    if (existingEdge == null)
+                    {
+                        existingEdge = new RecipeEdge($"{input}->{output}", input, output, string.Empty, string.Empty, string.Empty, string.Empty);
+                        recipeEdges.Add(existingEdge);
+                    }
+
+                    //Update tiers
+                    switch (sr.tier)
+                    {
+                        case 0:
+                            existingEdge.RT0 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
+                            break;
+                        case 1:
+                            existingEdge.RT1 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
+                            break;
+                        case 2:
+                            existingEdge.RT2 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
+                            break;
+                        case 3:
+                            existingEdge.RT3 = $"{allCounts[i]}:{sr.outputCount}|{sr.timeInSeconds}";
+                            break;
+                        default:
+                            LogInfo($"Error: sr {sr.output} sr.tier is{sr.tier} - outside range 0-3.");
+                            return;
+                    }
+                }
+
+                //For each good in the recipe, add a node to the graph, if it doesn't already exist:
+                foreach (string ingredient in allIngredients)
+                {
+                    GoodNode existingNode = goodNodes.Find(gn => gn.id == ingredient);
+                    if (existingNode == null)
+                    {
+                        existingNode = new GoodNode(ingredient, ingredient, new List<string>(), new List<string>());
+                        goodNodes.Add(existingNode);
+                    }
+
+                    if (!existingNode.producedBy.Contains($"{sr.producedBy}:T{sr.tier}"))
+                        existingNode.producedBy.Add($"{sr.producedBy}:T{sr.tier}");
+                    if (!existingNode.usedIn.Contains(sr.output))
+                        existingNode.usedIn.Add(sr.output);
+                }
             }
+            catch(Exception e)
+            {
+                LogInfo($"Error @ {srI}: {e.Message}");
+            }
+           
         }
 
-        LogInfo($"All recipes dumped correctly! Converting to serializable object.");
+        if (srI == recipes.Count)
+        {
+            LogInfo($"All recipes dumped correctly! Converting to serializable object.");
 
-        FinalJSONData finalJSONData = new FinalJSONData();
-        finalJSONData.recipes = recipeEdges.ToArray();
-        finalJSONData.goods = goodNodes.ToArray();
-        finalJSONData.buildings = buildings.ToArray();
+            FinalJSONData finalJSONData = new FinalJSONData();
+            finalJSONData.recipes = recipeEdges.ToArray();
+            finalJSONData.goods = goodNodes.ToArray();
+            finalJSONData.buildings = buildings.ToArray();
 
-        string jsonString = JSON.ToJson(finalJSONData);
+            string jsonString = JSON.ToJson(finalJSONData);
 
-        LogInfo($"Writing {jsonString.Length} json chars to {Path.Combine(JsonFolder, "data.json")}");
+            LogInfo($"Writing {jsonString.Length} json chars to {Path.Combine(JsonFolder, "data.json")}");
 
-        File.WriteAllText(Path.Combine(JsonFolder, "data.json"), jsonString);
+            File.WriteAllText(Path.Combine(JsonFolder, "data.json"), jsonString);
+        }
     }
 
 
@@ -188,7 +217,7 @@ public static class DumpToJson
 
         var ret = new SerializableRecipe(
                 tier: recipeRaw.tier.Count(c => c == '★'),
-                output: (recipeRaw.output != null) ? recipeRaw.output.DisplayName : "(no output?)",
+                output: (recipeRaw.output != null) ? recipeRaw.output.DisplayName : "(no output)",
                 outputCount: (recipeRaw.output != null) ? recipeRaw.output.amount : -1,
                 producedBy: recipeRaw.building,
                 ing1.ToArray(),
