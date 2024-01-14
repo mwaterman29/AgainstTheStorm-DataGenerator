@@ -43,18 +43,23 @@ namespace BubbleStormTweaks
         public static void LogError(object data) => Instance.Logger.LogError(data);
 
         private KeyboardShortcut dumpKeyBind;
+        private KeyboardShortcut dumpImgKeyBind;
 
         private void Awake()
         {
             Instance = this;
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded  since {this.gameObject.activeSelf}");
             dumpKeyBind = new(KeyCode.F3);
+            dumpImgKeyBind = new(KeyCode.F4);
         }
 
         private void Update(){
             //if (dumpKeyBind.IsDown()) Dumper.DoDump();
             if (dumpKeyBind.IsPressed() || dumpKeyBind.IsDown())
                 DumpToJson.DumpFull();
+
+            if (dumpImgKeyBind.IsPressed() || dumpImgKeyBind.IsDown())
+                DumpToJson.DumpImages();
         }
 
         private void OnDestroy()

@@ -48,21 +48,61 @@ public static class DumpToJson
         }
     }
 
+    public static List<Dumper.RecipeRaw> rawRecipes = new List<Dumper.RecipeRaw>();
     public static List<SerializableRecipe> recipes = new List<SerializableRecipe>();
     public static List<RecipeEdge> recipeEdges = new List<RecipeEdge>();
     public static List<GoodNode> goodNodes = new List<GoodNode>();
     public static List<Building> buildings = new List<Building>();
+    public static List<(string, Sprite)> sprites = new List<(string, Sprite)>();
     public static int srI;
+    public static int imgI = 0;
     public static bool started = false;
 
     public static void DumpRecipes()
     {
-        if(recipes.Count == 0)
+        if(rawRecipes.Count == 0 || recipes.Count == 0)
         {
-            foreach (var r in Dumper.DumpBuildings(null))
+            rawRecipes = Dumper.DumpBuildings(null);
+            foreach (var r in rawRecipes)
             {
                 if (r != null)
                     recipes.Add(ConvertRecipe(r));
+
+                if (r == null || r.ingredients == null)
+                {
+                    LogInfo($"Skipping null rawRecipe");
+                    continue;
+                }
+
+                foreach (var ing in r.ingredients)
+                {
+                    if (ing == null || ing.goods == null)
+                    {
+                        LogInfo($"Skipping null ing/ing goods");
+                        continue;
+                    }
+
+                    foreach (var good in ing.goods)
+                    {
+                        if (good == null || good.Icon == null || good.DisplayName == null)
+                        {
+                            LogInfo($"Skipping null good / good.icon");
+                            continue;
+                        }
+
+                        sprites.Add((good.DisplayName, good.Icon));
+                    }
+                }
+
+                if(r.output == null || r.output.DisplayName == null || r.output.Icon == null)
+                {
+                    LogInfo($"Skipping no output");
+                }
+                else
+                {
+                    sprites.Add((r.output.DisplayName, r.output.Icon));
+                }
+
             }
 
             LogInfo($"All recipes dumped from original buildings, converting:");
@@ -205,6 +245,51 @@ public static class DumpToJson
         }
     }
 
+    public static void DumpImages()
+    {
+
+        LogInfo($"Dumping all images: {imgI} / {sprites.Count}");
+
+        var imageFolder = Path.Combine(JsonFolder, "img");
+        if (!Directory.Exists(imageFolder))
+            Directory.CreateDirectory(imageFolder);
+
+        var spriteEntry = sprites[imgI];
+
+        if (spriteEntry.Item2.texture == null)
+            return;
+        string dest = Path.Combine(imageFolder, spriteEntry.Item1 + ".png");
+
+        if (File.Exists(dest))
+            return;
+
+        var convText = duplicateTexture(spriteEntry.Item2.texture);
+        var imageByteData = ImageConversion.EncodeToPNG(convText);
+        File.WriteAllBytes(dest, imageByteData);
+
+        imgI++;
+    }
+
+    //https://forum.unity.com/threads/easy-way-to-make-texture-isreadable-true-by-script.1141915/
+    public static Texture2D duplicateTexture(Texture2D source)
+    {
+        RenderTexture renderTex = RenderTexture.GetTemporary(
+                    source.width,
+                    source.height,
+                    0,
+                    RenderTextureFormat.Default,
+                    RenderTextureReadWrite.Linear);
+
+        Graphics.Blit(source, renderTex);
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = renderTex;
+        Texture2D readableText = new Texture2D(source.width, source.height);
+        readableText.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
+        readableText.Apply();
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(renderTex);
+        return readableText;
+    }
 
     public static SerializableRecipe ConvertRecipe(Dumper.RecipeRaw recipeRaw)
     {
