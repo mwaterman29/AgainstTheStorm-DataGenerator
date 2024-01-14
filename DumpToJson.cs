@@ -53,7 +53,7 @@ public static class DumpToJson
     public static List<RecipeEdge> recipeEdges = new List<RecipeEdge>();
     public static List<GoodNode> goodNodes = new List<GoodNode>();
     public static List<Building> buildings = new List<Building>();
-    public static List<(string, Sprite)> sprites = new List<(string, Sprite)>();
+    public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
     public static int srI;
     public static int imgI = 0;
     public static bool started = false;
@@ -90,7 +90,8 @@ public static class DumpToJson
                             continue;
                         }
 
-                        sprites.Add((good.DisplayName, good.Icon));
+                        ExtractableSpriteReference sr = GetSpriteRef(good.Icon);
+                        sprites.Add((good.DisplayName, sr));
                     }
                 }
 
@@ -100,7 +101,8 @@ public static class DumpToJson
                 }
                 else
                 {
-                    sprites.Add((r.output.DisplayName, r.output.Icon));
+                    ExtractableSpriteReference sr = GetSpriteRef(r.output.Icon);
+                    sprites.Add((r.output.DisplayName, sr));
                 }
 
             }
@@ -256,18 +258,62 @@ public static class DumpToJson
 
         var spriteEntry = sprites[imgI];
 
-        if (spriteEntry.Item2.texture == null)
+        if (spriteEntry.Item2.source == null)
+        {
+            imgI++;
             return;
+        }
         string dest = Path.Combine(imageFolder, spriteEntry.Item1 + ".png");
 
         if (File.Exists(dest))
+        {
+            imgI++;
             return;
+        }
 
-        var convText = duplicateTexture(spriteEntry.Item2.texture);
-        var imageByteData = ImageConversion.EncodeToPNG(convText);
+        var convText = duplicateTexture(spriteEntry.Item2.source);
+
+        //Extract region from texture
+        // Create a new texture for the extracted region
+        Texture2D extractedTexture = new Texture2D((int)spriteEntry.Item2.source_w, (int)spriteEntry.Item2.source_h);
+
+        // Define the region to extract
+        Rect sourceRect = new Rect(spriteEntry.Item2.source_x, spriteEntry.Item2.source_y, spriteEntry.Item2.source_w, spriteEntry.Item2.source_h);
+
+        // Read pixels from the original texture into the extracted texture
+        Color[] pixels = convText.GetPixels((int)sourceRect.x, (int)sourceRect.y, (int)sourceRect.width, (int)sourceRect.height);
+        extractedTexture.SetPixels(pixels);
+
+        // Apply changes to the extracted texture
+        extractedTexture.Apply();
+
+        var imageByteData = ImageConversion.EncodeToPNG(extractedTexture);
         File.WriteAllBytes(dest, imageByteData);
 
         imgI++;
+    }
+
+    public static ExtractableSpriteReference GetSpriteRef(Sprite icon)
+    {
+        ExtractableSpriteReference spriteRef = new()
+        {
+            source = icon.texture,
+            source_w = icon.textureRect.width,
+            source_h = icon.textureRect.height,
+            source_x = icon.textureRect.x,
+            source_y = icon.textureRect.y,
+        };
+
+        return spriteRef;
+    }
+
+    public class ExtractableSpriteReference
+    {
+        public Texture2D source;
+        public float source_w;
+        public float source_h;
+        public float source_x;
+        public float source_y;
     }
 
     //https://forum.unity.com/threads/easy-way-to-make-texture-isreadable-true-by-script.1141915/
