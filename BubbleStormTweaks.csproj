@@ -62,7 +62,7 @@
 			<Assembly Include="$(OutputPath)\$(AssemblyName).dll" />
 		</ItemGroup>
 
-		<Copy SourceFiles="@(Assembly)" DestinationFolder="G:\Gaming Time\Steam\steamapps\common\Against the StormBepInEx\plugins" />
+		<Copy SourceFiles="@(Assembly)" DestinationFolder="G:\Gaming Time\Steam\steamapps\common\Against the Storm\BepInEx\plugins" />
 	</Target>
 
 

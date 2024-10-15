@@ -16,6 +16,7 @@ using Eremite.Model.Meta;
 using Eremite.Model.Orders;
 using Eremite.Services;
 using Eremite.WorldMap;
+using Eremite.Model.Goals;
 using HarmonyLib;
 using Newtonsoft.Json;
 using QFSW.QC;
@@ -56,7 +57,46 @@ public static class DumpToJson
     public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
     public static int srI;
     public static int imgI = 0;
+    public static int goalI = 0;
     public static bool started = false;
+
+    public static void DumpGoals()
+    {
+        GoalModel[] goals = GameSettings.goals;
+
+        if (goalI == 0)
+        {
+            LogInfo($"Logging {goals.Length} goals...");
+        }
+        // return;
+
+        int thisStepMax = Math.Min(goals.Length, goalI + 1);
+        for (; goalI < thisStepMax; goalI++)
+        {
+            try
+            {
+                GoalModel goal = goals[goalI];
+                string desc = goal.GetDescription();
+                string title = goal.displayName.Text;
+                bool hidden = goal.label.isHiddenCategory;
+                if(hidden)
+                {
+                    LogInfo($"Found hidden @ [{goalI}] {title}: {desc}");
+                }
+            }
+            catch(Exception e)
+            {
+
+            }
+
+        }
+        /*foreach (GoalModel goal in goals)
+        {
+            string desc = goal.GetDescription();
+            string title = goal.GetNAText();
+            LogInfo($"{title}: {desc}");
+        }*/
+    }
 
     public static void DumpRecipes()
     {
@@ -119,7 +159,10 @@ public static class DumpToJson
             SerializableRecipe sr = recipes[srI];
 
             if (sr.output == "(no output)")
+            {
+                LogInfo($"No output for recipe {srI}");
                 continue;
+            }
 
             LogInfo($"Convering recipe for {sr.output}, Tier {sr.tier} from {sr.producedBy} [{srI}]");
             try
@@ -244,6 +287,10 @@ public static class DumpToJson
             LogInfo($"Writing {jsonString.Length} json chars to {Path.Combine(JsonFolder, "data.json")}");
 
             File.WriteAllText(Path.Combine(JsonFolder, "data.json"), jsonString);
+        }
+        else
+        {
+            LogInfo($"Not all recipes dumped correctly - {srI} / {recipes.Count}.");
         }
     }
 

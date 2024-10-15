@@ -162,7 +162,7 @@ namespace BubbleStormTweaks
         public static void AddRecipeGrade(this Settings raw, RecipeGradeModel item) => Misc.Append(ref raw.recipesGrades, item);
         public static void AddRecipe(this Settings raw, RecipeModel item) => Misc.Append(ref raw.recipes, item);
         public static void AddWorkshopRecipe(this Settings raw, WorkshopRecipeModel item) => Misc.Append(ref raw.workshopsRecipes, item);
-        public static void AddBlightPostRecipe(this Settings raw, BlightPostRecipeModel item) => Misc.Append(ref raw.blightPostsRecipes, item);
+        //public static void AddBlightPostRecipe(this Settings raw, BlightPostRecipeModel item) => Misc.Append(ref raw.blightPostsRecipes, item);
         public static void AddCampRecipe(this Settings raw, CampRecipeModel item) => Misc.Append(ref raw.campsRecipes, item);
         public static void AddGathererHutRecipe(this Settings raw, GathererHutRecipeModel item) => Misc.Append(ref raw.gatherersHutsRecipes, item);
         public static void AddMineRecipe(this Settings raw, MineRecipeModel item) => Misc.Append(ref raw.minesRecipes, item);
