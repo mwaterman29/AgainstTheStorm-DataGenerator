@@ -24,7 +24,7 @@ using QFSW.QC.Utilities;
 using UnityEngine;
 using BubbleStormTweaks;
 
-namespace BubbleStormTweaks.V2_Dump
+namespace ATSDumpV2
 {
     /*
      * - Pull all recipes from the GameSettings
@@ -42,15 +42,39 @@ namespace BubbleStormTweaks.V2_Dump
         //Recipes converted to serializable outputs
         public static List<SerializableRecipe> recipes = new List<SerializableRecipe>();
 
-        //Outputs:
-        public static List<Building> buildings = new List<Building>();
-        public static List<Good> goods = new List<Good>();
+        //Indices and step size
+        public static int recipeIndex = 0;
+        public static int recipeStepSize = 5;
 
-        public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
-        /*public static int srI;
-        public static int imgI = 0;
-        public static int goalI = 0;
-        public static bool started = false;*/
+        //Step function
+        public static bool Step(List<(string, ExtractableSpriteReference)> sprites, List<Building> buildings, List<Item> items)
+        {
+            if (rawRecipes.Count == 0 || recipes.Count == 0)
+            {
+                DumpRawRecipes(sprites);
+                LogInfo($"[Recipes] All recipes dumped from original buildings, converting...");
+                return false;
+
+            }
+
+            int thisStepMax = Math.Min(recipes.Count, recipeIndex + recipeStepSize);
+            LogInfo($"[Recipes] Dumping from {recipeIndex} to {thisStepMax} of total {recipes.Count}");
+            for (; recipeIndex < thisStepMax; recipeIndex++)
+            {
+                SerializableRecipe recipeToProcess = recipes[recipeIndex];
+                Process(recipeToProcess, buildings, items);
+            }
+
+            if (recipeIndex == recipes.Count)
+            {
+                LogInfo($"[Recipes] All {recipes.Count} dumped successfully!");
+                return true;
+            }
+
+            return false;
+        }
+
+
 
         //Convert a single raw recipe to a SerializableRecipe
         public static SerializableRecipe ConvertRecipe(Dumper.RecipeRaw recipeRaw)
@@ -101,9 +125,16 @@ namespace BubbleStormTweaks.V2_Dump
         }
 
         //Dump raw recipes
-        public static void DumpRawRecipes()
+        public static void DumpRawRecipes(List<(string, ExtractableSpriteReference)> sprites)
         {
             rawRecipes = Dumper.DumpBuildings(null);
+
+            //In addition to using the dump buildings code that exists, we should pull the icons as well
+            foreach (var source in Plugin.GameSettings.Buildings)
+            {
+                sprites.Add((source.name, UtilityMethods.GetSpriteRef(source.icon)));
+            }
+
             foreach (var r in rawRecipes)
             {
                 if (r != null)
@@ -119,26 +150,26 @@ namespace BubbleStormTweaks.V2_Dump
                 {
                     if (ing == null || ing.goods == null)
                     {
-                        LogInfo($"Skipping null ing/ing goods");
+                        LogInfo($"Skipping null ing/ing Items");
                         continue;
                     }
 
-                    foreach (var good in ing.goods)
+                    foreach (var Item in ing.goods)
                     {
-                        if (good == null || good.Icon == null || good.DisplayName == null)
+                        if (Item == null || Item.Icon == null || Item.DisplayName == null)
                         {
-                            LogInfo($"Skipping null good / good.icon");
+                            LogInfo($"Skipping null Item / Item.icon");
                             continue;
                         }
 
-                        ExtractableSpriteReference sr = UtilityMethods.GetSpriteRef(good.Icon);
-                        sprites.Add((good.DisplayName, sr));
+                        ExtractableSpriteReference sr = UtilityMethods.GetSpriteRef(Item.Icon);
+                        sprites.Add((Item.DisplayName, sr));
                     }
                 }
 
                 if (r.output == null || r.output.DisplayName == null || r.output.Icon == null)
                 {
-                    LogInfo($"Skipping no output");
+                    //LogInfo($"Skipping no output");
                 }
                 else
                 {
@@ -148,77 +179,97 @@ namespace BubbleStormTweaks.V2_Dump
 
             }
         }
-        public static void Process(SerializableRecipe sr)
+
+        public static void Process(SerializableRecipe sr, List<Building> buildings, List<Item> items)
         {
             try
             {
-                // Add this recipe to what the building produces:
-                Building producedBy = buildings.Find(b => b.id == sr.producedBy);
-                if (producedBy != null)
+                //First, create an item for the output
+                string outputName = sr.output;
+                Item existingOutputItem = items.Find(item => item.id == outputName);
+
+                //If it doesn't exist, create a new one
+                if (existingOutputItem == null)
                 {
-                    producedBy.produces.Add(new Recipe(sr.output, sr.producedBy, sr.output, new Dictionary<int, RecipeTier>()));
+                    existingOutputItem = new Item(outputName, outputName, sr.ingredientsFirst.ToList(), sr.ingredientsSecond.ToList(), new List<string>());
+                    items.Add(existingOutputItem);
                 }
+                //If it does exist, see if the ingredients are present.
                 else
                 {
-                    Building temp = new Building(sr.producedBy, new List<Recipe>(), -1);
-                    temp.produces.Add(new Recipe(sr.output, sr.producedBy, sr.output, new Dictionary<int, RecipeTier>()));
-                    buildings.Add(temp);
+                    // Union the existing usesFirst with sr.ingredientsFirst
+                    existingOutputItem.usesFirst = existingOutputItem.usesFirst
+                        .Union(sr.ingredientsFirst)
+                        .Distinct()
+                        .ToList();
+
+                    // Union the existing usesSecond with sr.ingredientsSecond
+                    existingOutputItem.usesSecond = existingOutputItem.usesSecond
+                        .Union(sr.ingredientsSecond)
+                        .Distinct()
+                        .ToList();
                 }
 
-                // Combine all ingredients and counts
-                List<string> allIngredients = sr.ingredientsFirst.Concat(sr.ingredientsSecond).ToList();
-                List<int> allCounts = sr.ingredientsFirstCounts.Concat(sr.ingredientsSecondCounts).ToList();
-
-                if (allIngredients.Count != allCounts.Count)
+                //For each first ingredient
+                for (int i = 0; i < sr.ingredientsFirst.Length; i++)
                 {
-                    LogInfo($"Count mismatch: {allIngredients.Count} to {allCounts.Count}!");
-                    return;
-                }
+                    string itemName = sr.ingredientsFirst[i];
+                    var existingItem = items.Find(item => item.id == itemName);
 
-                // Process each ingredient
-                for (int i = 0; i < allIngredients.Count; i++)
-                {
-                    string input = allIngredients[i];
-                    string output = sr.output;
-
-                    // Find or create the recipe
-                    Recipe recipe = new Recipe(sr.output, sr.producedBy, sr.output, new Dictionary<int, RecipeTier>());
-                    if (!recipe.tiers.ContainsKey(sr.tier))
+                    //If it doesn't exist, create it
+                    if (existingItem == null)
                     {
-                        recipe.tiers[sr.tier] = new RecipeTier(allCounts[i], sr.outputCount, sr.timeInSeconds);
+                        existingItem = new Item(itemName, itemName, new List<string>(), new List<string>(), new List<string>());
+                        items.Add(existingItem);
                     }
 
-                    // Find or create the goods
-                    Good existingGood = goods.Find(g => g.id == input);
-                    if (existingGood == null)
+                    //Add this to used in, if it's not already present.
+                    if (!existingItem.usedIn.Contains(outputName))
                     {
-                        existingGood = new Good(input, input, new List<GoodUsage>(), new List<GoodUsage>(), new List<string>());
-                        goods.Add(existingGood);
+                        existingItem.usedIn.Add(outputName);
+                    }
+                }
+
+                //For each second ingredient
+                for (int i = 0; i < sr.ingredientsSecond.Length; i++)
+                {
+                    string itemName = sr.ingredientsSecond[i];
+                    var existingItem = items.Find(item => item.id == itemName);
+
+                    //If it doesn't exist, create it
+                    if (existingItem == null)
+                    {
+                        existingItem = new Item(itemName, itemName, new List<string>(), new List<string>(), new List<string>());
+                        items.Add(existingItem);
                     }
 
-                    if (!existingGood.usedIn.Contains(output))
-                        existingGood.usedIn.Add(output);
+                    //Add this to used in, if it's not already present.
+                    if (!existingItem.usedIn.Contains(outputName))
+                    {
+                        existingItem.usedIn.Add(outputName);
+                    }
                 }
 
-                // Check output as well
-                Good existingGoodOut = goods.Find(g => g.id == sr.output);
-                if (existingGoodOut == null)
+                //Once the items for all ingredients are processed, process the recipe.
+                Building existingBuilding = buildings.Find(building => building.id == sr.producedBy);
+                if (existingBuilding == null)
                 {
-                    existingGoodOut = new Good(sr.output, sr.output, new List<GoodUsage>(), new List<GoodUsage>(), new List<string>());
-                    goods.Add(existingGoodOut);
+                    existingBuilding = new Building(sr.producedBy, new List<SerializableRecipe>(), -1);
+                    buildings.Add(existingBuilding);
                 }
 
-                // Ensure recipe ingredients are appended when they're found
-                existingGoodOut.usesFirst.AddRange(sr.ingredientsFirst.Select(ing => new GoodUsage(ing, sr.ingredientsFirstCounts[Array.IndexOf(sr.ingredientsFirst, ing)])));
-                existingGoodOut.usesSecond.AddRange(sr.ingredientsSecond.Select(ing => new GoodUsage(ing, sr.ingredientsSecondCounts[Array.IndexOf(sr.ingredientsSecond, ing)])));
-
-                existingGoodOut.usesFirst = existingGoodOut.usesFirst.Distinct().ToList();
-                existingGoodOut.usesSecond = existingGoodOut.usesSecond.Distinct().ToList();
+                //Once a building exists, see if it contains this recipe
+                SerializableRecipe existingRecipe = existingBuilding.produces.Find(recipe => recipe.tier == sr.tier && recipe.output == sr.output);
+                if (existingRecipe == null)
+                {
+                    //No need to create the recipe, just insert it.
+                    existingBuilding.produces.Add(sr);
+                }
 
             }
             catch (Exception e)
             {
-                LogInfo($"Error @ {sr.output}: {e.Message}");
+                LogInfo($"[Recipes] Error @ {sr.output}: {e.Message}");
             }
         }
     }

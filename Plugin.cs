@@ -59,7 +59,7 @@ namespace BubbleStormTweaks
         {
             //if (dumpKeyBind.IsDown()) Dumper.DoDump();
             if (dumpKeyBind.IsPressed() || dumpKeyBind.IsDown())
-                DumpToJson.DumpFull();
+                ATSDumpV2.DumpManager.DumpToJson();   //DumpToJson.DumpFull();
 
             if (dumpImgKeyBind.IsPressed() || dumpImgKeyBind.IsDown())
                 DumpToJson.DumpImages();
