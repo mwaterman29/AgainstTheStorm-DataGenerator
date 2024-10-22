@@ -15,15 +15,22 @@ namespace ATSDumpV2
 
         //Getting dumped to JSON
         public static List<Item> items = new List<Item>();
+        public static List<ProductionBuilding> productionBuildings = new List<ProductionBuilding>();
         public static List<Building> buildings = new List<Building>();
+        public static List<Cornerstone> cornerstones = new List<Cornerstone>();
         //public static List<Recipe> recipes = new List<Recipe>();
         public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
 
         // Progress tracking:
         public static bool recipesDumped = false;
+        public static bool buildingsDumped = false;
+        public static bool effectsDumped = false;
+
 
         //Final output
         public static bool recipesWritten = false;
+        public static bool buildingsWritten = false;
+        public static bool effectsWritten = false;
 
         //Images
         public static int imageIndex = 0;
@@ -35,15 +42,29 @@ namespace ATSDumpV2
             //Run all steps for dumping recipes
             if (!recipesDumped)
             {
-                recipesDumped = DumpRecipes.Step(sprites, buildings, items);
+                recipesDumped = DumpRecipes.Step(sprites, productionBuildings, items);
                 return;
             }
+
+            //Run all steps for dumping buildings
+            if(!buildingsDumped)
+            {
+                buildingsDumped = DumpBuildings.Step(buildings);
+                return;
+            }
+
+            if(!effectsDumped)
+            {
+                effectsDumped = DumpEffects.Step(sprites, cornerstones);
+                return;
+            }
+
 
             if(!recipesWritten)
             {
                 try
                 {
-                    LogInfo("[JSON] Writing recipes... (items, buildings)");
+                    LogInfo("[JSON] Writing recipes... (items, productionBuildings)");
                     // Ensure the directory exists
                     if (!Directory.Exists(jsonFolder))
                     {
@@ -54,15 +75,66 @@ namespace ATSDumpV2
                     string itemsJson = JSON.ToJson(items);
                     File.WriteAllText(Path.Combine(jsonFolder, "items.json"), itemsJson);
 
-                    // Serialize buildings to JSON
-                    string buildingsJson = JSON.ToJson(buildings);
-                    File.WriteAllText(Path.Combine(jsonFolder, "buildings.json"), buildingsJson);
+                    // Serialize productionBuildings to JSON
+                    string productionBuildingsJson = JSON.ToJson(productionBuildings);
+                    File.WriteAllText(Path.Combine(jsonFolder, "productionBuildings.json"), productionBuildingsJson);
                 }
                 catch (Exception e)
                 {
                     LogInfo($"Error writing JSON files: {e.Message}");
                 }
                 recipesWritten = true;
+                return;
+            }
+
+            if (!buildingsWritten)
+            {
+                try
+                {
+                    LogInfo("[JSON] Writing all buildings...");
+                    // Ensure the directory exists
+                    if (!Directory.Exists(jsonFolder))
+                    {
+                        Directory.CreateDirectory(jsonFolder);
+                    }
+
+                    // Serialize items to JSON
+                    string itemsJson = JSON.ToJson(items);
+                    File.WriteAllText(Path.Combine(jsonFolder, "items.json"), itemsJson);
+
+                    // Serialize productionBuildings to JSON
+                    string productionBuildingsJson = JSON.ToJson(productionBuildings);
+                    File.WriteAllText(Path.Combine(jsonFolder, "productionBuildings.json"), productionBuildingsJson);
+                }
+                catch (Exception e)
+                {
+                    LogInfo($"Error writing JSON files: {e.Message}");
+                }
+                buildingsWritten = true;
+                return;
+            }
+
+            if (!effectsWritten)
+            {
+                try
+                {
+                    LogInfo("[JSON] Writing effects...");
+                    // Ensure the directory exists
+                    if (!Directory.Exists(jsonFolder))
+                    {
+                        Directory.CreateDirectory(jsonFolder);
+                    }
+
+                    // Serialize items to JSON
+                    string effectsJson = JSON.ToJson(cornerstones);
+                    File.WriteAllText(Path.Combine(jsonFolder, "effects.json"), effectsJson);
+
+                }
+                catch (Exception e)
+                {
+                    LogInfo($"Error writing JSON files: {e.Message}");
+                }
+                effectsWritten = true;
                 return;
             }
 

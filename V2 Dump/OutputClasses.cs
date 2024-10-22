@@ -101,22 +101,20 @@ namespace ATSDumpV2
     }
 
     [System.Serializable]
-    public class Building
+    public class ProductionBuilding
     {
         public string id;
         public List<SerializableRecipe> produces;
-        public int workerSlots;
 
-        public Building()
+        public ProductionBuilding()
         {
             produces = new List<SerializableRecipe>();
         }
 
-        public Building(string id, List<SerializableRecipe> produces, int workerSlots)
+        public ProductionBuilding(string id, List<SerializableRecipe> produces, int workerSlots)
         {
             this.id = id;
             this.produces = produces ?? new List<SerializableRecipe>();
-            this.workerSlots = workerSlots;
         }
     }
 
@@ -202,5 +200,31 @@ namespace ATSDumpV2
             this.biomeLock = biomeLock ?? new List<string>();
             this.soldBy = soldBy ?? new List<CornerstoneSale>();
         }
+    }
+
+    [Serializable]
+    public class Effect
+    {
+        public string id;
+        public string label;
+        public string description;
+        public string rarity;
+    }
+
+    [Serializable]
+    public class BuildingEffect
+    {
+        public string id;
+        public int minWorkerCount;
+    }
+
+    [Serializable]
+    public class Building
+    {
+        public string id;
+        public string label;
+        public string description;
+        public string category;
+        public List<BuildingEffect> effects;
     }
 }

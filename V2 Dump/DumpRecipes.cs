@@ -47,7 +47,7 @@ namespace ATSDumpV2
         public static int recipeStepSize = 5;
 
         //Step function
-        public static bool Step(List<(string, ExtractableSpriteReference)> sprites, List<Building> buildings, List<Item> items)
+        public static bool Step(List<(string, ExtractableSpriteReference)> sprites, List<ProductionBuilding> buildings, List<Item> items)
         {
             if (rawRecipes.Count == 0 || recipes.Count == 0)
             {
@@ -180,7 +180,7 @@ namespace ATSDumpV2
             }
         }
 
-        public static void Process(SerializableRecipe sr, List<Building> buildings, List<Item> items)
+        public static void Process(SerializableRecipe sr, List<ProductionBuilding> buildings, List<Item> items)
         {
             try
             {
@@ -251,10 +251,10 @@ namespace ATSDumpV2
                 }
 
                 //Once the items for all ingredients are processed, process the recipe.
-                Building existingBuilding = buildings.Find(building => building.id == sr.producedBy);
+                ProductionBuilding existingBuilding = buildings.Find(building => building.id == sr.producedBy);
                 if (existingBuilding == null)
                 {
-                    existingBuilding = new Building(sr.producedBy, new List<SerializableRecipe>(), -1);
+                    existingBuilding = new ProductionBuilding(sr.producedBy, new List<SerializableRecipe>(), -1);
                     buildings.Add(existingBuilding);
                 }
 
