@@ -565,7 +565,7 @@ namespace BubbleStormTweaks
                                 GetEffectSource(reward).orders.Add(order.Name);
                             index.AppendLine($@"<div><h5>{reward?.Name ?? "<???>"}</h5></div>");
                         }
-                    }
+                    } 
                     else
                     {
                         index.AppendLine($@"<h4>Rewards:</h4>");

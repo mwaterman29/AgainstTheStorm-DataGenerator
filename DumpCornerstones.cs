@@ -34,7 +34,7 @@ namespace BubbleStormTweaks
                 var biomeName = biome.displayName.Text;
                 if(biomeName.Contains("Missing")){
                     continue;
-                }
+                } 
                 allBiomes.Add(biomeName);
                 foreach (var effectHolder in biome.seasons.SeasonRewards.SelectMany(season => season.effectsTable.effects)){
                     GetOrAdd(stones, effectHolder, biome);
