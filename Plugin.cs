@@ -45,6 +45,7 @@ namespace BubbleStormTweaks
         private KeyboardShortcut dumpKeyBind;
         private KeyboardShortcut dumpImgKeyBind;
         private KeyboardShortcut dumpTestKeyBind;
+        private bool dumping;
 
         private void Awake()
         {
@@ -57,9 +58,20 @@ namespace BubbleStormTweaks
 
         private void Update()
         {
+            if(dumping)
+            {
+                ATSDumpV2.DumpManager.DumpToJson();
+            }
+
+            if(dumpKeyBind.IsDown())
+            {
+                LogInfo("Toggling dumping status...");
+                dumping = !dumping;
+            }
+
             //if (dumpKeyBind.IsDown()) Dumper.DoDump();
-            if (dumpKeyBind.IsPressed() || dumpKeyBind.IsDown())
-                ATSDumpV2.DumpManager.DumpToJson();   //DumpToJson.DumpFull();
+            //if (dumpKeyBind.IsPressed() || dumpKeyBind.IsDown())
+                 //DumpToJson.DumpFull();
 
             if (dumpImgKeyBind.IsPressed() || dumpImgKeyBind.IsDown())
                 DumpToJson.DumpImages();

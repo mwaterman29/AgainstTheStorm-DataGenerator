@@ -14,21 +14,61 @@ namespace ATSDumpV2
 
         public static void LogInfo(object data) => Plugin.LogInfo(data);
 
-        public static List<string> seasonalEffectRewards = new List<string>();
+        //public static List<string> seasonalEffectRewards = new List<string>();
+        public static List<EffectModel> seasonalEffectRewards = new List<EffectModel>();
+        public static List<EffectModel> tutorialSeasonalEffectRewards = new List<EffectModel>();
+        public static List<EffectModel> altarAvailableEffects = new List<EffectModel>();
+
+        //Scan through altar rewards, seasonal rewards to see what's actually currently available
         public static bool seasonalRewardsScanned = false;
+
+        //Once the output is formatted, we need to tag relevant effects
+        //public static bool effectsTagged = false;
+
 
         public static void ScanSeasonalRewards()
         {
+            //Serviceable.AltarService.
+            //Serviceable.Settings.altarConfig.
+            foreach(var effect in Serviceable.Settings.altarEffects)
+            {
+                LogInfo($"Found altar effect: ${effect.upgradedEffect.Name}");
+                altarAvailableEffects.Add(effect.upgradedEffect);
+            }
+
             foreach (var biome in Serviceable.Settings.biomes)
             {
+                LogInfo($"biome: {biome.name}");
+
+                if (biome.Name.Contains("Missing"))
+                {
+                    continue;
+                }
+
                 foreach (var effectHolder in biome.seasons.SeasonRewards.SelectMany(season => season.effectsTable.effects))
                 {
-                    string id = effectHolder.effect.DisplayNameKey;
+                    /*string id = effectHolder.effect.DisplayNameKey;
                     if (!seasonalEffectRewards.Contains(id))
                         seasonalEffectRewards.Add(id);
+                    */
+
+                    if(biome.name.Contains("Tutorial"))
+                    {
+                        tutorialSeasonalEffectRewards.Add(effectHolder.effect);
+                    }
+                    else
+                    {
+                        if (!seasonalEffectRewards.Contains(effectHolder.effect))
+                            seasonalEffectRewards.Add(effectHolder.effect);
+                    }
                 }
             }
         }
+
+        /*public static void TagEffects(List<Cornerstone> outputEffects)
+        {
+            
+        }*/
 
         public static bool Step(List<(string, ExtractableSpriteReference)> sprites, List<Cornerstone> outputEffects)
         {
@@ -77,7 +117,7 @@ namespace ATSDumpV2
                  * Otherwise list as an effect
                  */
                 string type = "Effect";
-                if(seasonalEffectRewards.Contains(outputEffect.id) || outputEffect.label.Contains("Stormforged"))
+                if(tutorialSeasonalEffectRewards.Contains(effectToDump) || seasonalEffectRewards.Contains(effectToDump) || outputEffect.label.Contains("Stormforged"))
                 {
                     type = "Cornerstone";
                 }
@@ -94,9 +134,30 @@ namespace ATSDumpV2
                     sprites.Add((outputEffect.label, sr));
                 }
 
+                // If this is a stormforged cornerstone, check if it's actually offered
+                if(effectToDump.rarity == EffectRarity.Mythic && !altarAvailableEffects.Contains(effectToDump))
+                {
+                    outputEffect.tags.Add("hidden");
+                }
+
+                // If this is only available during the tutorial, then mark that as well
+                if(tutorialSeasonalEffectRewards.Contains(effectToDump) && !seasonalEffectRewards.Contains(effectToDump))
+                {
+                    outputEffect.tags.Add("tutorial");
+                }
+
             }
 
             return effectIndex == allEffects.Length;
+
+            /*
+            if (effectIndex == allEffects.Length && !effectsTagged)
+            {
+                TagEffects(outputEffects);
+                effectsTagged = true;
+                return false;
+            }
+            */
         }
     }
 }

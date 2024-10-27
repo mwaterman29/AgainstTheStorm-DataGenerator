@@ -133,6 +133,7 @@ namespace ATSDumpV2
             foreach (var source in Plugin.GameSettings.Buildings)
             {
                 sprites.Add((source.name, UtilityMethods.GetSpriteRef(source.icon)));
+                LogInfo($"Dumping texture for {source.name} -> icon name {source.icon.name}");
             }
 
             foreach (var r in rawRecipes)

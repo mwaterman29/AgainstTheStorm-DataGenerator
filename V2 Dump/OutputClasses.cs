@@ -183,11 +183,13 @@ namespace ATSDumpV2
         public string type;
         public List<string> biomeLock;
         public List<CornerstoneSale> soldBy;
+        public List<string> tags;
 
         public Cornerstone()
         {
             biomeLock = new List<string>();
             soldBy = new List<CornerstoneSale>();
+            tags = new List<string>();
         }
 
         public Cornerstone(string id, string label, string description, string tier, string type, List<string> biomeLock, List<CornerstoneSale> soldBy)
@@ -226,5 +228,21 @@ namespace ATSDumpV2
         public string description;
         public string category;
         public List<BuildingEffect> effects;
+    }
+
+    public class Order
+    {
+        public string Name { get; set; }
+        public List<OrderLogicSet> LogicSets { get; set; }
+        public List<string> Rewards { get; set; }
+        public List<string> ExcludedBiomes { get; set; }
+        public string ReputationReward { get; set; }
+    }
+
+    public class OrderLogicSet
+    {
+        public string Difficulty { get; set; }
+        public List<string> Logics { get; set; }
+        public List<string> Rewards { get; set; }
     }
 }
