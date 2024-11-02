@@ -40,6 +40,9 @@ namespace ATSDumpV2
         // This function can be repeatedly called, and will step through the logic progressively with a manageable chunk of work each frame
         public static void DumpToJson()
         {
+            DumpBiomes.DumpAllBiomes();
+            return;
+
             // Run all steps for dumping recipes
             if (!recipesDumped)
             {
