@@ -19,6 +19,7 @@ namespace ATSDumpV2
         public static List<Building> buildings = new List<Building>();
         public static List<Cornerstone> cornerstones = new List<Cornerstone>();
         public static List<Order> orders = new List<Order>();
+        public static List<Biome> biomes = new List<Biome>();
         public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
 
         // Progress tracking:
@@ -26,12 +27,14 @@ namespace ATSDumpV2
         public static bool buildingsDumped = false;
         public static bool effectsDumped = false;
         public static bool ordersDumped = false;
+        public static bool biomesDumped = false;
 
         // Final output
         public static bool recipesWritten = false;
         public static bool buildingsWritten = false;
         public static bool effectsWritten = false;
         public static bool ordersWritten = false;
+        public static bool biomesWritten = false;
 
         // Images
         public static int imageIndex = 0;
@@ -40,8 +43,6 @@ namespace ATSDumpV2
         // This function can be repeatedly called, and will step through the logic progressively with a manageable chunk of work each frame
         public static void DumpToJson()
         {
-            DumpBiomes.DumpAllBiomes();
-            return;
 
             // Run all steps for dumping recipes
             if (!recipesDumped)
@@ -66,6 +67,12 @@ namespace ATSDumpV2
             if (!ordersDumped)
             {
                 ordersDumped = DumpOrders.Step(orders);
+                return;
+            }
+
+            if(!biomesDumped)
+            {
+                biomesDumped = DumpBiomes.DumpAllBiomes(biomes);
                 return;
             }
 
@@ -146,6 +153,25 @@ namespace ATSDumpV2
                     LogInfo($"Error writing JSON files: {e.Message}");
                 }
                 ordersWritten = true;
+                return;
+            }
+
+            if (!biomesWritten)
+            {
+                try
+                {
+                    LogInfo("[JSON] Writing biomes...");
+                    EnsureDirectoryExists(jsonFolder);
+
+                    // Serialize orders to JSON
+                    string biomesJson = JSON.ToJson(biomes);
+                    File.WriteAllText(Path.Combine(jsonFolder, "biomes.json"), biomesJson);
+                }
+                catch (Exception e)
+                {
+                    LogInfo($"Error writing JSON files: {e.Message}");
+                }
+                biomesWritten = true;
                 return;
             }
 

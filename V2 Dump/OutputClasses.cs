@@ -230,6 +230,7 @@ namespace ATSDumpV2
         public List<BuildingEffect> effects;
     }
 
+    [Serializable]
     public class Order
     {
         public string Name { get; set; }
@@ -239,10 +240,20 @@ namespace ATSDumpV2
         public string ReputationReward { get; set; }
     }
 
+    [Serializable]
     public class OrderLogicSet
     {
         public string Difficulty { get; set; }
         public List<string> Logics { get; set; }
         public List<string> Rewards { get; set; }
     }
+
+    [Serializable]
+    public class Biome
+    {
+        public string name;
+        public List<string> treeItems;
+        public List<string> depositItems;
+    }
+
 }
