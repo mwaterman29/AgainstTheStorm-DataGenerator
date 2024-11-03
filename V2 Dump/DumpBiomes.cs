@@ -18,14 +18,17 @@ namespace ATSDumpV2
         static string goodPattern = @"\[[^\]]*\]\s*";
 
         //There are so few, this can be done in one step
-        public static bool DumpAllBiomes(List<Biome> biomes)
+        public static bool DumpAllBiomes(List<(string, ExtractableSpriteReference)> sprites, List<Biome> biomes)
         {
             foreach (var biome in Serviceable.Settings.biomes)
             {
                 Biome outputBiome = new Biome();
-                outputBiome.name = biome.Name;
+                outputBiome.name = biome.displayName.GetText();  //biome.Name;
                 outputBiome.treeItems = new List<string>();
                 outputBiome.depositItems = new List<string>();
+
+                ExtractableSpriteReference sr = UtilityMethods.GetSpriteRef(biome.icon);
+                sprites.Add((outputBiome.name, sr));
 
                 var trees = biome.GetTreesGoods();
                 foreach(var good in trees)

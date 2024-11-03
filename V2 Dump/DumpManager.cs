@@ -72,7 +72,7 @@ namespace ATSDumpV2
 
             if(!biomesDumped)
             {
-                biomesDumped = DumpBiomes.DumpAllBiomes(biomes);
+                biomesDumped = DumpBiomes.DumpAllBiomes(sprites, biomes);
                 return;
             }
 
