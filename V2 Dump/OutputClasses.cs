@@ -40,6 +40,7 @@ namespace ATSDumpV2
     {
         public string id;
         public string label;
+        public string category;
         public List<string> usesFirst;
         public List<string> usesSecond;
         public List<string> usedIn;
@@ -105,6 +106,8 @@ namespace ATSDumpV2
     {
         public string id;
         public List<SerializableRecipe> produces;
+        public string category;
+        public int workerSlots;
 
         public ProductionBuilding()
         {
@@ -256,4 +259,10 @@ namespace ATSDumpV2
         public List<string> depositItems;
     }
 
+    [Serializable]
+    public class Species
+    {
+        public string name;
+        public string[] needs;
+    }
 }

@@ -15,11 +15,13 @@ namespace ATSDumpV2
 
         // Getting dumped to JSON
         public static List<Item> items = new List<Item>();
+        public static List<Item> itemsFromGoods = new List<Item>();
         public static List<ProductionBuilding> productionBuildings = new List<ProductionBuilding>();
         public static List<Building> buildings = new List<Building>();
         public static List<Cornerstone> cornerstones = new List<Cornerstone>();
         public static List<Order> orders = new List<Order>();
         public static List<Biome> biomes = new List<Biome>();
+        public static List<Species> species = new List<Species>();
         public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
 
         // Progress tracking:
@@ -28,6 +30,9 @@ namespace ATSDumpV2
         public static bool effectsDumped = false;
         public static bool ordersDumped = false;
         public static bool biomesDumped = false;
+        public static bool speciesDumped = false;
+        public static bool buildingsFormatted = false;
+        public static bool itemsDumped = false;
 
         // Final output
         public static bool recipesWritten = false;
@@ -35,6 +40,7 @@ namespace ATSDumpV2
         public static bool effectsWritten = false;
         public static bool ordersWritten = false;
         public static bool biomesWritten = false;
+        public static bool speciesWritten = false;
 
         // Images
         public static int imageIndex = 0;
@@ -43,18 +49,33 @@ namespace ATSDumpV2
         // This function can be repeatedly called, and will step through the logic progressively with a manageable chunk of work each frame
         public static void DumpToJson()
         {
+            if (!itemsDumped)
+            {
+                itemsDumped = DumpItems.Step(sprites, itemsFromGoods);
+                return;
+            }
 
-            // Run all steps for dumping recipes
+            if (!speciesDumped)
+            {
+                speciesDumped = DumpSpecies.Step(species);
+                return;
+            }
+
             if (!recipesDumped)
             {
                 recipesDumped = DumpRecipes.Step(sprites, productionBuildings, items);
                 return;
             }
 
-            // Run all steps for dumping buildings
             if (!buildingsDumped)
             {
                 buildingsDumped = DumpBuildings.Step(buildings);
+                return;
+            }
+
+            if (!buildingsFormatted)
+            {
+                buildingsFormatted = DumpBuildings.UpdateProductionBuildings(productionBuildings);
                 return;
             }
 
@@ -70,7 +91,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if(!biomesDumped)
+            if (!biomesDumped)
             {
                 biomesDumped = DumpBiomes.DumpAllBiomes(sprites, biomes);
                 return;
@@ -96,6 +117,25 @@ namespace ATSDumpV2
                     LogInfo($"Error writing JSON files: {e.Message}");
                 }
                 recipesWritten = true;
+                return;
+            }
+
+            if (!speciesWritten)
+            {
+                try
+                {
+                    LogInfo("[JSON] Writing species...");
+                    EnsureDirectoryExists(jsonFolder);
+
+                    // Serialize species to JSON
+                    string speciesJson = JSON.ToJson(species);
+                    File.WriteAllText(Path.Combine(jsonFolder, "species.json"), speciesJson);
+                }
+                catch (Exception e)
+                {
+                    LogInfo($"Error writing JSON files: {e.Message}");
+                }
+                speciesWritten = true;
                 return;
             }
 

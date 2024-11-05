@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using BubbleStormTweaks;
 using Eremite.Buildings;
+using System.Linq;
 
 namespace ATSDumpV2
 {
@@ -50,6 +51,28 @@ namespace ATSDumpV2
 
             return buildingIndex == allBuildings.Length;
         
+        }
+
+        public static bool UpdateProductionBuildings(List<ProductionBuilding> productionBuildings)
+        {
+            var allBuildings = Plugin.GameSettings.Buildings;
+
+            foreach (ProductionBuilding building in productionBuildings)
+            {
+                //Find category, worker slots:
+                var buildingModel = allBuildings.Where(bm => bm.Name == building.id).First();
+
+                if(buildingModel == null)
+                {
+                    LogInfo($"Couldn't find building for {building.id}");
+                }
+
+                building.workerSlots = buildingModel.WorkplacesCount;
+                building.category = buildingModel.category.Name.ToString();
+
+            }
+
+            return true;
         }
     }
 }
