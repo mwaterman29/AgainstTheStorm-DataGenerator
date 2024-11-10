@@ -230,15 +230,41 @@ namespace ATSDumpV2
         public string[] needs;
     }
 
+
+    public class GladeSolveOption
+    {
+        public string name;
+        public string decisionTag;
+        public List<ItemUsage> options1;
+        public List<ItemUsage> options2;
+    }
+
+    public class GladeDifficulty
+    {
+        public string difficultyClass;
+        public List<GladeSolveOption> gladeSolveOptions;
+    }
+
+    public class GladeReward
+    {
+        public string effect;
+        public int chance;
+    }
+
     [Serializable]
     public class GladeEvent
     {
-        public string Name { get; set; }
-        public List<string> SolveOptions { get; set; }
-        public List<string> SolveCategories { get; set; }
+        public string id { get; set; }
+        public string label { get; set; }
+
+        public List<GladeDifficulty> difficulties;
+
+        public List<GladeReward> gladeRewards;
+
+       
         public List<string> EffectsWhileWorking { get; set; }
         public List<string> ThreatEffects { get; set; }
-        public string Reward { get; set; }
+        
         public int WorkerSlots { get; set; }
         public float TotalTime { get; set; }
         public string Difficulty { get; set; }

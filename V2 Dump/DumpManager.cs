@@ -13,6 +13,20 @@ namespace ATSDumpV2
         public static void LogInfo(object data) => Plugin.LogInfo(data);
         public static string jsonFolder => @"G:\_Programming\ATS Data Dump\";
 
+        // Option dictionary to enable/disable dumping
+        public static Dictionary<string, bool> enableMap = new Dictionary<string, bool>
+        {
+            { "items", false },
+            { "species", false },
+            { "recipes", false },
+            { "buildings", false },
+            { "effects", false },
+            { "orders", false },
+            { "biomes", false },
+            { "gladeEvents", true },
+            { "sprites", true }
+        };
+
         // Getting dumped to JSON
         public static List<Item> items = new List<Item>();
         public static List<Item> itemsFromGoods = new List<Item>();
@@ -52,61 +66,61 @@ namespace ATSDumpV2
         // This function can be repeatedly called, and will step through the logic progressively with a manageable chunk of work each frame
         public static void DumpToJson()
         {
-            if (!itemsDumped)
+            if (enableMap["items"] && !itemsDumped)
             {
                 itemsDumped = DumpItems.Step(sprites, itemsFromGoods);
                 return;
             }
 
-            if (!speciesDumped)
+            if (enableMap["species"] && !speciesDumped)
             {
                 speciesDumped = DumpSpecies.Step(species);
                 return;
             }
 
-            if (!recipesDumped)
+            if (enableMap["recipes"] && !recipesDumped)
             {
                 recipesDumped = DumpRecipes.Step(sprites, productionBuildings, items);
                 return;
             }
 
-            if (!buildingsDumped)
+            if (enableMap["buildings"] && !buildingsDumped)
             {
                 buildingsDumped = DumpBuildings.Step(buildings);
                 return;
             }
 
-            if (!buildingsFormatted)
+            if (enableMap["buildings"] && !buildingsFormatted)
             {
                 buildingsFormatted = DumpBuildings.UpdateProductionBuildings(productionBuildings);
                 return;
             }
 
-            if (!effectsDumped)
+            if (enableMap["effects"] && !effectsDumped)
             {
                 effectsDumped = DumpEffects.Step(sprites, cornerstones);
                 return;
             }
 
-            if (!ordersDumped)
+            if (enableMap["orders"] && !ordersDumped)
             {
                 ordersDumped = DumpOrders.Step(orders);
                 return;
             }
 
-            if (!biomesDumped)
+            if (enableMap["biomes"] && !biomesDumped)
             {
                 biomesDumped = DumpBiomes.DumpAllBiomes(sprites, biomes);
                 return;
             }
 
-            if (!gladeEventsDumped)
+            if (enableMap["gladeEvents"] && !gladeEventsDumped)
             {
                 gladeEventsDumped = DumpGladeEvents.Step(sprites, gladeEvents);
                 return;
             }
 
-            if (!recipesWritten)
+            if (enableMap["recipes"] && !recipesWritten)
             {
                 try
                 {
@@ -129,7 +143,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!speciesWritten)
+            if (enableMap["species"] && !speciesWritten)
             {
                 try
                 {
@@ -148,7 +162,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!buildingsWritten)
+            if (enableMap["buildings"] && !buildingsWritten)
             {
                 try
                 {
@@ -167,7 +181,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!effectsWritten)
+            if (enableMap["effects"] && !effectsWritten)
             {
                 try
                 {
@@ -186,7 +200,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!ordersWritten)
+            if (enableMap["orders"] && !ordersWritten)
             {
                 try
                 {
@@ -205,7 +219,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!biomesWritten)
+            if (enableMap["biomes"] && !biomesWritten)
             {
                 try
                 {
@@ -224,7 +238,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!gladeEventsWritten)
+            if (enableMap["gladeEvents"] && !gladeEventsWritten)
             {
                 try
                 {
@@ -243,7 +257,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (!imagesDeduplicated)
+            if (enableMap["sprites"] && !imagesDeduplicated)
             {
                 // De-duplicate images
                 var uniqueSprites = sprites
@@ -256,7 +270,7 @@ namespace ATSDumpV2
                 return;
             }
 
-            if (imageIndex < sprites.Count)
+            if (enableMap["sprites"] && imageIndex < sprites.Count)
             {
                 LogInfo($"[Images] Dumping image {imageIndex} / {sprites.Count - 1}");
 
