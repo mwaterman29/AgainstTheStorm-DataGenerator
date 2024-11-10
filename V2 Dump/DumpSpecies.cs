@@ -18,6 +18,10 @@ namespace ATSDumpV2
             var allRaces = Plugin.GameSettings.Races;
             int thisStepMax = Math.Min(allRaces.Length, speciesIndex + speciesStepSize);
 
+
+            Plugin.GameSettings.Relics[0].
+
+
             LogInfo($"[Species] Dumping from {speciesIndex} to {thisStepMax} of total {allRaces.Length}");
             for (; speciesIndex < thisStepMax; speciesIndex++)
             {

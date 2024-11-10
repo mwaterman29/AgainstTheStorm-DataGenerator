@@ -22,6 +22,7 @@ namespace ATSDumpV2
         public static List<Order> orders = new List<Order>();
         public static List<Biome> biomes = new List<Biome>();
         public static List<Species> species = new List<Species>();
+        public static List<GladeEvent> gladeEvents = new List<GladeEvent>();
         public static List<(string, ExtractableSpriteReference)> sprites = new List<(string, ExtractableSpriteReference)>();
 
         // Progress tracking:
@@ -31,6 +32,7 @@ namespace ATSDumpV2
         public static bool ordersDumped = false;
         public static bool biomesDumped = false;
         public static bool speciesDumped = false;
+        public static bool gladeEventsDumped = false;
         public static bool buildingsFormatted = false;
         public static bool itemsDumped = false;
 
@@ -41,6 +43,7 @@ namespace ATSDumpV2
         public static bool ordersWritten = false;
         public static bool biomesWritten = false;
         public static bool speciesWritten = false;
+        public static bool gladeEventsWritten = false;
 
         // Images
         public static int imageIndex = 0;
@@ -94,6 +97,12 @@ namespace ATSDumpV2
             if (!biomesDumped)
             {
                 biomesDumped = DumpBiomes.DumpAllBiomes(sprites, biomes);
+                return;
+            }
+
+            if (!gladeEventsDumped)
+            {
+                gladeEventsDumped = DumpGladeEvents.Step(sprites, gladeEvents);
                 return;
             }
 
@@ -203,7 +212,7 @@ namespace ATSDumpV2
                     LogInfo("[JSON] Writing biomes...");
                     EnsureDirectoryExists(jsonFolder);
 
-                    // Serialize orders to JSON
+                    // Serialize biomes to JSON
                     string biomesJson = JSON.ToJson(biomes);
                     File.WriteAllText(Path.Combine(jsonFolder, "biomes.json"), biomesJson);
                 }
@@ -212,6 +221,25 @@ namespace ATSDumpV2
                     LogInfo($"Error writing JSON files: {e.Message}");
                 }
                 biomesWritten = true;
+                return;
+            }
+
+            if (!gladeEventsWritten)
+            {
+                try
+                {
+                    LogInfo("[JSON] Writing glade events...");
+                    EnsureDirectoryExists(jsonFolder);
+
+                    // Serialize glade events to JSON
+                    string gladeEventsJson = JSON.ToJson(gladeEvents);
+                    File.WriteAllText(Path.Combine(jsonFolder, "gladeEvents.json"), gladeEventsJson);
+                }
+                catch (Exception e)
+                {
+                    LogInfo($"Error writing JSON files: {e.Message}");
+                }
+                gladeEventsWritten = true;
                 return;
             }
 

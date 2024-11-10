@@ -122,42 +122,6 @@ namespace ATSDumpV2
     }
 
     [System.Serializable]
-    public class GladeEvent
-    {
-        public string id;
-        public string label;
-        public string description;
-        public string category;
-        public string threat;
-        public string workingEffect;
-        public int baseSolveTime;
-        public List<ItemUsage> solveOptions1;
-        public List<ItemUsage> solveOptions2;
-        public List<ItemUsage> reward;
-
-        public GladeEvent()
-        {
-            solveOptions1 = new List<ItemUsage>();
-            solveOptions2 = new List<ItemUsage>();
-            reward = new List<ItemUsage>();
-        }
-
-        public GladeEvent(string id, string label, string description, string category, string threat, string workingEffect, int baseSolveTime, List<ItemUsage> solveOptions1, List<ItemUsage> solveOptions2, List<ItemUsage> reward)
-        {
-            this.id = id;
-            this.label = label;
-            this.description = description;
-            this.category = category;
-            this.threat = threat;
-            this.workingEffect = workingEffect;
-            this.baseSolveTime = baseSolveTime;
-            this.solveOptions1 = solveOptions1 ?? new List<ItemUsage>();
-            this.solveOptions2 = solveOptions2 ?? new List<ItemUsage>();
-            this.reward = reward ?? new List<ItemUsage>();
-        }
-    }
-
-    [System.Serializable]
     public class CornerstoneSale
     {
         public string traderId;
@@ -264,5 +228,19 @@ namespace ATSDumpV2
     {
         public string name;
         public string[] needs;
+    }
+
+    [Serializable]
+    public class GladeEvent
+    {
+        public string Name { get; set; }
+        public List<string> SolveOptions { get; set; }
+        public List<string> SolveCategories { get; set; }
+        public List<string> EffectsWhileWorking { get; set; }
+        public List<string> ThreatEffects { get; set; }
+        public string Reward { get; set; }
+        public int WorkerSlots { get; set; }
+        public float TotalTime { get; set; }
+        public string Difficulty { get; set; }
     }
 }
