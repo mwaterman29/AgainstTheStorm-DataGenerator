@@ -235,7 +235,7 @@ namespace ATSDumpV2
     {
         public string name;
         public string decisionTag;
-        public List<string> workingEffects;
+        public List<EffectSummary> workingEffects;
         public List<ItemUsage> options1;
         public List<ItemUsage> options2;
     }
@@ -252,6 +252,12 @@ namespace ATSDumpV2
         public int chance;
     }
 
+    public class EffectSummary
+    {
+        public string label;
+        public string description;
+    }
+
     [Serializable]
     public class GladeEvent
     {
@@ -264,8 +270,8 @@ namespace ATSDumpV2
         public List<string> rewardTableNames;
 
        
-        public List<string> workingEffects { get; set; }
-        public List<string> threats { get; set; }
+        public List<EffectSummary> workingEffects { get; set; }
+        public List<EffectSummary> threats { get; set; }
         
         public int workerSlots { get; set; }
         public float totalTime { get; set; }
