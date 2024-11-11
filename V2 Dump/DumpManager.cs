@@ -24,7 +24,7 @@ namespace ATSDumpV2
             { "orders", false },
             { "biomes", false },
             { "gladeEvents", true },
-            { "sprites", true }
+            { "sprites", false }
         };
 
         // Getting dumped to JSON

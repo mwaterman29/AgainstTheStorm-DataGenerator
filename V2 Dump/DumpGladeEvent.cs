@@ -26,8 +26,8 @@ namespace ATSDumpV2
                 var outputEvent = new GladeEvent();
                 outputEvent.id = relicToDump.name;
                 outputEvent.label = relicToDump.displayName.GetText();
-                outputEvent.EffectsWhileWorking = relicToDump.activeEffects?.Select(e => e.name).ToList() ?? new List<string>();
-                outputEvent.ThreatEffects = relicToDump.effectsTiers?.SelectMany(t => t.effect)?.Select(e => e.displayName.GetText()).ToList() ?? new List<string>();
+                outputEvent.workingEffects = relicToDump.activeEffects?.Select(e => e.name).ToList() ?? new List<string>();
+                outputEvent.threats = relicToDump.effectsTiers?.SelectMany(t => t.effect)?.Select(e => e.displayName.GetText()).ToList() ?? new List<string>();
                 outputEvent.workerSlots = relicToDump.WorkplacesCount;
                 outputEvent.totalTime = relicToDump.GetWorkingTime(0, 0);
 
@@ -43,8 +43,9 @@ namespace ATSDumpV2
                         {
                             name = decision.label?.displayName.GetText(),
                             decisionTag = decision.decisionTag?.displayName.GetText(),
-                            options1 = decision.requriedGoods?.sets.FirstOrDefault()?.goods.Select(g => new ItemUsage(g.good.Name, g.amount)).ToList() ?? new List<ItemUsage>(),
-                            options2 = decision.requriedGoods?.sets.ElementAtOrDefault(1)?.goods.Select(g => new ItemUsage(g.good.Name, g.amount)).ToList() ?? new List<ItemUsage>()
+                            workingEffects = decision.workingEffects.Select(eff => eff.displayName.Text).ToList(),
+                            options1 = decision.requriedGoods?.sets.FirstOrDefault()?.goods.Select(g => new ItemUsage(g.good.displayName.Text, g.amount)).ToList() ?? new List<ItemUsage>(),
+                            options2 = decision.requriedGoods?.sets.ElementAtOrDefault(1)?.goods.Select(g => new ItemUsage(g.good.displayName.Text, g.amount)).ToList() ?? new List<ItemUsage>()
                         }).ToList() ?? new List<GladeSolveOption>()
                     }).ToList();
                 }
