@@ -28,8 +28,11 @@ namespace ATSDumpV2
                 outputEvent.label = relicToDump.displayName.GetText();
                 outputEvent.EffectsWhileWorking = relicToDump.activeEffects?.Select(e => e.name).ToList() ?? new List<string>();
                 outputEvent.ThreatEffects = relicToDump.effectsTiers?.SelectMany(t => t.effect)?.Select(e => e.displayName.GetText()).ToList() ?? new List<string>();
-                outputEvent.WorkerSlots = relicToDump.WorkplacesCount;
-                outputEvent.TotalTime = relicToDump.GetWorkingTime(0, 0);
+                outputEvent.workerSlots = relicToDump.WorkplacesCount;
+                outputEvent.totalTime = relicToDump.GetWorkingTime(0, 0);
+
+                //tyyyyyy
+                outputEvent.difficulty = GetRelicGroup(relicToDump).Item1;
 
                 if (relicToDump.difficulties != null)
                 {
@@ -38,8 +41,8 @@ namespace ATSDumpV2
                         difficultyClass = d.difficulty.ToString(),
                         gladeSolveOptions = d.decisions?.Select(decision => new GladeSolveOption
                         {
-                            name = decision.label?.Name,
-                            decisionTag = decision.decisionTag?.displayName.Text,
+                            name = decision.label?.displayName.GetText(),
+                            decisionTag = decision.decisionTag?.displayName.GetText(),
                             options1 = decision.requriedGoods?.sets.FirstOrDefault()?.goods.Select(g => new ItemUsage(g.good.Name, g.amount)).ToList() ?? new List<ItemUsage>(),
                             options2 = decision.requriedGoods?.sets.ElementAtOrDefault(1)?.goods.Select(g => new ItemUsage(g.good.Name, g.amount)).ToList() ?? new List<ItemUsage>()
                         }).ToList() ?? new List<GladeSolveOption>()
@@ -47,30 +50,33 @@ namespace ATSDumpV2
                 }
 
                 // Dump the rewards table
-                outputEvent.gladeRewards = new List<GladeReward>();
-                foreach (var rewardStep in relicToDump.rewardsTiers)
-                {
-                    if (rewardStep.rewardsTable != null)
-                    {
-                        foreach (var entity in rewardStep.rewardsTable.effects)
-                        {
-                            outputEvent.gladeRewards.Add(new GladeReward
-                            {
-                                effect = entity.effect.name,
-                                chance = entity.chance
-                            });
-                        }
+                /* outputEvent.gladeRewards = new List<GladeReward>();
+                 foreach (var rewardStep in relicToDump.rewardsTiers)
+                 {
+                     if (rewardStep.rewardsTable != null)
+                     {
+                         foreach (var entity in rewardStep.rewardsTable.effects)
+                         {
+                             outputEvent.gladeRewards.Add(new GladeReward
+                             {
+                                 effect = entity.effect.name,
+                                 chance = entity.chance
+                             });
+                         }
 
-                        foreach (var entity in rewardStep.rewardsTable.guaranteedEffects)
-                        {
-                            outputEvent.gladeRewards.Add(new GladeReward
-                            {
-                                effect = entity.name,
-                                chance = 100
-                            });
-                        }
-                    }
-                }
+                         foreach (var entity in rewardStep.rewardsTable.guaranteedEffects)
+                         {
+                             outputEvent.gladeRewards.Add(new GladeReward
+                             {
+                                 effect = entity.name,
+                                 chance = 100
+                             });
+                         }
+                     }
+                 }
+                */
+                //outputEvent.rewardTableName = relicToDump.rewardsTiers.FirstOrDefault()?.rewardsTable?.Name ?? "No Rewards Table";
+                outputEvent.rewardTableNames = relicToDump.decisionsRewards.Select(t => t.Name).ToList();
 
                 ExtractableSpriteReference sr = UtilityMethods.GetSpriteRef(relicToDump.icon);
                 sprites.Add((outputEvent.id, sr));
@@ -81,6 +87,26 @@ namespace ATSDumpV2
             }
 
             return eventIndex == allRelics.Length;
+        }
+        
+        private static Tuple<string, int> GetRelicGroup(RelicModel relic)
+        {
+            if (relic.Name.StartsWith("DebugNode"))
+                return new("Debug", 0);
+            if (relic.dangerLevel == DangerLevel.Forbidden)
+                return new("Forbidden", 1);
+            if (relic.dangerLevel == DangerLevel.Dangerous)
+                return new("Dangerous", 2);
+            if (relic.name.Contains("Treasure Stag") || relic.name.Contains("Rainpunk Drill") || relic.name.Contains("Monolith"))
+                return new("Small", 3);
+            if (relic.displayName.Text.Contains("Encampment") || relic.displayName.Text.Contains("Abandoned Cache"))
+                return new("Other", 4);
+            if (relic.interactionType == RelicInteractionType.TraderPanel)
+                return new("Trader", 5);
+            if (relic.orderModel != null)
+                return new("Ghosts", 6);
+
+            return new("Ruins", 99);
         }
     }
 }

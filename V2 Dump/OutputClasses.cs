@@ -259,14 +259,15 @@ namespace ATSDumpV2
 
         public List<GladeDifficulty> difficulties;
 
-        public List<GladeReward> gladeRewards;
+        //public List<GladeReward> gladeRewards;
+        public List<string> rewardTableNames;
 
        
         public List<string> EffectsWhileWorking { get; set; }
         public List<string> ThreatEffects { get; set; }
         
-        public int WorkerSlots { get; set; }
-        public float TotalTime { get; set; }
-        public string Difficulty { get; set; }
+        public int workerSlots { get; set; }
+        public float totalTime { get; set; }
+        public string difficulty { get; set; }
     }
 }
